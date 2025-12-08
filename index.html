@@ -3,17 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Night Survival: Moon Awakening</title>
+    <title>Night Survival: Boss Fight Balanced</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Arial', sans-serif; user-select: none; }
         
         /* UI 層 */
         #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
         
+        /* 受傷血腥特效 */
+        #damage-vignette {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            box-shadow: inset 0 0 150px rgba(255, 0, 0, 0.9);
+            opacity: 0; transition: opacity 0.1s; pointer-events: none; z-index: 10;
+            mix-blend-mode: overlay;
+        }
+
+        /* 偷襲警告 */
+        #danger-warning {
+            position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 40px; color: #ff0000; font-weight: 900; text-shadow: 2px 2px 0 #000;
+            display: none; animation: shake 0.2s infinite; z-index: 20;
+        }
+
+        @keyframes shake {
+            0% { transform: translate(-52%, -50%); }
+            50% { transform: translate(-48%, -50%); }
+            100% { transform: translate(-52%, -50%); }
+        }
+
         /* 準心 */
         #crosshair {
             position: absolute; top: 50%; left: 50%; width: 24px; height: 24px;
-            transform: translate(-50%, -50%); transition: 0.1s;
+            transform: translate(-50%, -50%); transition: 0.1s; z-index: 5;
         }
         #crosshair::before, #crosshair::after { content: ''; position: absolute; background: rgba(0, 255, 0, 0.8); box-shadow: 0 0 4px #0f0; }
         #crosshair::before { top: 11px; left: 0; width: 24px; height: 2px; }
@@ -94,6 +115,8 @@
 <body>
 
     <div id="ui-layer">
+        <div id="damage-vignette"></div>
+        <div id="danger-warning">⚠️ BEHIND YOU! ⚠️</div>
         <div id="crosshair"></div>
         <div id="phase2-flash"></div>
         
@@ -162,7 +185,7 @@
         <h1>NIGHT SURVIVAL</h1>
         <div class="controls">
             <p><span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span> 移動</p>
-            <p><span class="key">按住左鍵</span> 攻擊</p>
+            <p><span class="key">按住左鍵</span> 攻擊 (擊退BOSS)</p>
             <p><span class="key">1</span><span class="key">2</span><span class="key">3</span> 切換武器</p>
             <p><span class="key">B</span> 商店</p>
         </div>
@@ -172,7 +195,7 @@
 <script>
     // --- 遊戲參數 ---
     const CONFIG = {
-        walkSpeed: 12.0,
+        walkSpeed: 24.0,  
         jumpForce: 15.0,
         gravity: 30.0,
         mouseSensitivity: 0.002,
@@ -195,19 +218,20 @@
         isFiring: false,
         phase2: false,
         bossRef: null,
-        bossLives: 3,        // BOSS 復活次數
-        bossInvincible: false, // BOSS 無敵狀態
-        truePowerUnlocked: false // 是否解鎖真·月牙
+        bossLives: 3,
+        bossInvincible: false,
+        truePowerUnlocked: false,
+        shakeIntensity: 0,
+        lastDamageTime: 0 // 新增：受傷冷卻時間
     };
 
     const WEAPON_DEFS = {
-        ak:   { name: "AK-47",  damage: 35,   rate: 180,  range: 100, type: 'hitscan', color: 0xffaa00, model: 'rifle' },
-        m249: { name: "M249",   damage: 25,   rate: 60,   range: 100, type: 'hitscan', color: 0x00ff00, model: 'm249' },
-        rpg:  { name: "RPG",    damage: 800,  rate: 1200, range: 200, type: 'explosive', color: 0xff0000, model: 'rpg' },
-        pistol:{ name: "Pistol",damage: 20,   rate: 300,  range: 60,  type: 'hitscan', color: 0xcccccc, model: 'pistol' },
-        axe:  { name: "Axe",    damage: 150,  rate: 600,  range: 4,   type: 'melee',   color: 0xffffff, model: 'axe' },
-        // 神器 - 改為 projectile 類型，發射月牙天衝
-        moon: { name: "MOON BLADE", damage: 1500, rate: 600, range: 200, type: 'projectile', color: 0x00ffff, model: 'moon' }
+        ak:   { name: "AK-47",  damage: 35,   rate: 180,  range: 100, type: 'hitscan', color: 0xffaa00, model: 'rifle', knockback: 0.8 },
+        m249: { name: "M249",   damage: 25,   rate: 60,   range: 100, type: 'hitscan', color: 0x00ff00, model: 'm249', knockback: 0.6 },
+        rpg:  { name: "RPG",    damage: 800,  rate: 1200, range: 200, type: 'explosive', color: 0xff0000, model: 'rpg', knockback: 5.0 },
+        pistol:{ name: "Pistol",damage: 20,   rate: 300,  range: 60,  type: 'hitscan', color: 0xcccccc, model: 'pistol', knockback: 0.5 },
+        axe:  { name: "Axe",    damage: 150,  rate: 600,  range: 4,   type: 'melee',   color: 0xffffff, model: 'axe', knockback: 3.0 },
+        moon: { name: "MOON BLADE", damage: 1500, rate: 600, range: 200, type: 'projectile', color: 0x00ffff, model: 'moon', knockback: 0 }
     };
 
     let inventory = [WEAPON_DEFS.ak, WEAPON_DEFS.pistol, WEAPON_DEFS.axe];
@@ -274,7 +298,7 @@
     gAxe.position.set(-0.2, 0, 0); 
     models['axe'] = gAxe; weaponContainer.add(gAxe);
 
-    // --- 月牙之刃 (Moon Blade) ---
+    // --- 月牙之刃 ---
     const gMoon = new THREE.Group();
     const moonGeo = new THREE.RingGeometry(0.3, 0.5, 32, 1, 0, Math.PI * 1.2);
     const moonMat = new THREE.MeshStandardMaterial({ 
@@ -319,7 +343,7 @@
     }
     createMap();
 
-    // 宇宙星空與月亮 (二階段用)
+    // 宇宙星空與月亮
     const starsGeometry = new THREE.BufferGeometry();
     const starsCount = 2000;
     const posArray = new Float32Array(starsCount * 3);
@@ -337,7 +361,7 @@
     // --- 敵人系統 ---
     let enemies = [];
     let bossProjectiles = [];
-    let playerProjectiles = []; // 玩家的月牙天衝
+    let playerProjectiles = [];
     
     const matZombieGreen = new THREE.MeshStandardMaterial({ color: 0x55aa55 });
     const matBossRed = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0x330000 });
@@ -391,11 +415,12 @@
         const dist = isBoss ? 60 : (30 + Math.random() * 40);
         enemyGroup.position.set(Math.sin(angle)*dist, 0, Math.cos(angle)*dist);
 
+        // 平衡調整：BOSS 速度降低，傷害降低
         enemyGroup.userData = {
             hp: isBoss ? 10000 : 100, 
             maxHp: isBoss ? 10000 : 100,
-            speed: isBoss ? 6.0 : (3.0 + Math.random() * 4),
-            damage: isBoss ? 25 : 5,
+            speed: isBoss ? 4.0 : (3.0 + Math.random() * 4), // Boss 速度從 6.0 降至 4.0
+            damage: isBoss ? 15 : 5, // Boss 傷害從 25 降至 15
             isBoss: isBoss,
             score: isBoss ? 50000 : 100,
             attackCooldown: 0
@@ -430,7 +455,6 @@
         if (STATE.phase2) return;
         STATE.phase2 = true;
 
-        // 補滿狀態
         STATE.hp = 100;
         STATE.armor = 100;
         updateHUD();
@@ -446,7 +470,6 @@
         announce.style.textShadow = "0 0 20px #00ffff";
         setTimeout(() => announce.style.opacity = 0, 4000);
 
-        // 清除小怪
         for (let i = enemies.length - 1; i >= 0; i--) {
             if (!enemies[i].userData.isBoss) {
                 scene.remove(enemies[i]);
@@ -454,11 +477,9 @@
             }
         }
 
-        // 清除建築
         obstacles.forEach(obs => scene.remove(obs));
         obstacles = [];
 
-        // 環境改變
         scene.fog = new THREE.FogExp2(0x000000, 0.002);
         scene.background = new THREE.Color(0x000000);
         starField.visible = true;
@@ -470,17 +491,14 @@
             opacity: 0.3 
         });
 
-        // 創建虛空之月 (目標)
         const moonGeo = new THREE.SphereGeometry(20, 32, 32);
         const moonMat = new THREE.MeshBasicMaterial({ color: 0xeeeeff });
         voidMoon = new THREE.Mesh(moonGeo, moonMat);
-        voidMoon.position.set(0, 100, -200); // 高空遠處
-        // 給月亮加個光暈
+        voidMoon.position.set(0, 100, -200);
         const glow = new THREE.PointLight(0xaaaaff, 2, 500);
         voidMoon.add(glow);
         scene.add(voidMoon);
 
-        // 更換武器
         inventory = [WEAPON_DEFS.moon];
         STATE.currentSlot = 0;
         const slots = document.getElementById('weapon-slots');
@@ -594,10 +612,8 @@
 
         const model = models[weapon.model];
         
-        // 武器動畫
         if (model) {
             if (weapon.model === 'moon') {
-                // 月牙天衝揮砍
                 model.rotation.x = -Math.PI / 2;
                 model.rotation.y = -Math.PI / 2;
                 setTimeout(() => {
@@ -624,9 +640,7 @@
             }
         }
 
-        // 發射邏輯
         if (weapon.model === 'moon') {
-            // 發射月牙天衝
             fireMoonBlade(weapon);
         } else {
             const raycaster = new THREE.Raycaster();
@@ -645,11 +659,16 @@
                     let target = hit.object;
                     while(target.parent && !target.userData.hp) target = target.parent;
                     if (target.userData.hp) {
-                        // 擊退 (BOSS 免疫 Y 軸擊退)
+                        // --- 擊退邏輯 (Knockback) ---
+                        // 計算從玩家指向敵人的向量
                         const pushDir = hit.point.clone().sub(playerBody.position).normalize();
-                        if (!target.userData.isBoss) {
-                            target.position.add(pushDir.multiplyScalar(weapon.type === 'melee' ? 2.0 : 0.2));
-                        }
+                        
+                        // 確保 Boss 也會被擊退，但幅度較小
+                        const knockbackForce = (weapon.knockback || 0.5);
+                        const resistance = target.userData.isBoss ? 0.2 : 1.0; // Boss 只有 20% 的擊退效果
+                        
+                        target.position.add(pushDir.multiplyScalar(knockbackForce * resistance));
+                        
                         damageEnemy(target, weapon.damage);
                     }
                 }
@@ -658,7 +677,6 @@
     }
 
     function fireMoonBlade(weapon) {
-        // 創建月牙波
         const geometry = new THREE.CylinderGeometry(2, 2, 0.2, 16, 1, true);
         geometry.openEnded = true;
         const material = new THREE.MeshBasicMaterial({ 
@@ -669,18 +687,15 @@
         });
         const projectile = new THREE.Mesh(geometry, material);
         
-        // 初始位置：玩家前方
         const direction = new THREE.Vector3();
         camera.getWorldDirection(direction);
         projectile.position.copy(playerBody.position).add(new THREE.Vector3(0, 1.5, 0)).add(direction.clone().multiplyScalar(2));
         
-        // 旋轉以面對飛行方向，並橫向平躺
         projectile.lookAt(projectile.position.clone().add(direction));
-        projectile.rotateX(Math.PI / 2); // 讓圓柱側面變成波浪形狀
+        projectile.rotateX(Math.PI / 2);
 
-        // 附加數據
         projectile.userData = { 
-            velocity: direction.multiplyScalar(40), // 速度快
+            velocity: direction.multiplyScalar(40),
             life: 3.0,
             damage: weapon.damage
         };
@@ -699,81 +714,68 @@
         enemies.forEach(enemy => {
             if (enemy.position.distanceTo(point) < 10) {
                 damageEnemy(enemy, damage);
-                
-                // 修復：BOSS 霸體，不會被炸飛
-                if (!enemy.userData.isBoss) {
-                    const dir = enemy.position.clone().sub(point).normalize();
-                    enemy.position.add(dir.multiplyScalar(2));
-                }
+                // 爆炸擊退
+                const dir = enemy.position.clone().sub(point).normalize();
+                const force = enemy.userData.isBoss ? 1.0 : 4.0;
+                enemy.position.add(dir.multiplyScalar(force));
             }
         });
     }
 
     function damageEnemy(enemy, dmg) {
         if (enemy.userData.isBoss) {
-            // 無敵判定
             if (STATE.bossInvincible) {
-                // 顯示無敵特效
                 enemy.traverse(c => {
                     if(c.isMesh) {
                         c.material.emissive.setHex(0xaa00aa);
                         setTimeout(() => c.material.emissive.setHex(0x330000), 100);
                     }
                 });
-                return; // 不扣血
+                return;
             }
 
             enemy.userData.hp -= dmg;
             const pct = Math.max(0, (enemy.userData.hp / enemy.userData.maxHp) * 100);
             document.getElementById('boss-hp-bar').style.width = pct + '%';
             
-            // 觸發二階段
             if (!STATE.phase2 && pct <= 50) {
                 enterPhaseTwo();
             }
 
-            // BOSS 死亡/復活邏輯
             if (enemy.userData.hp <= 0) {
                 if (STATE.bossLives > 0) {
-                    // 復活
                     STATE.bossLives--;
                     document.getElementById('boss-lives').innerText = `LIVES: ${STATE.bossLives}`;
                     enemy.userData.hp = enemy.userData.maxHp;
                     document.getElementById('boss-hp-bar').style.width = '100%';
                     
-                    // 復活特效
                     const announce = document.getElementById('wave-announce');
                     announce.innerText = "BOSS RESURRECTED!";
                     announce.style.opacity = 1;
                     announce.style.color = "#ff0000";
                     setTimeout(() => announce.style.opacity = 0, 1500);
 
-                    // 變強
                     enemy.scale.multiplyScalar(1.1); 
-                    enemy.userData.speed += 2;
+                    enemy.userData.speed += 1.0; // 平衡：復活後速度增加量減少 (原本+2)
 
-                    // 最後一條命觸發無敵機制
                     if (STATE.bossLives === 0) {
                         STATE.bossInvincible = true;
-                        enemy.userData.hp = 1; // 鎖血
-                        document.getElementById('boss-hp-bar').style.background = "#aa00aa"; // 紫色血條
+                        enemy.userData.hp = 1;
+                        document.getElementById('boss-hp-bar').style.background = "#aa00aa";
                         document.getElementById('mission-hint').style.display = 'block';
                     }
                 } else {
-                    // 真正的死亡 (需要解鎖真力量)
                     killEnemy(enemy);
                 }
             }
 
         } else {
-            // 普通怪
             enemy.userData.hp -= dmg;
             if (enemy.userData.hp <= 0) {
                 killEnemy(enemy);
             }
         }
 
-        // 受傷閃爍
         if (enemy.userData.hp > 0 && !STATE.bossInvincible) {
             enemy.traverse((child) => {
                 if(child.isMesh && child.material && child.material.emissive) child.material.emissive.setHex(0xffffff);
@@ -851,12 +853,9 @@
         document.getElementById('armor-val').innerText = Math.floor(STATE.armor);
     }
 
-    // --- BOSS 技能 ---
     function updateBoss(boss, delta) {
-        // 強制修正 BOSS 高度 (修復 RPG 擊飛 BUG)
         if (boss.position.y < 2.0) boss.position.y = 2.0;
 
-        // 翅膀扇動
         const wingL = boss.getObjectByName("wingL");
         const wingR = boss.getObjectByName("wingR");
         if(wingL && wingR) {
@@ -865,10 +864,8 @@
             wingR.rotation.y = flap;
         }
 
-        // 投射物技能
         boss.userData.attackCooldown -= delta;
         if (boss.userData.attackCooldown <= 0) {
-            // 復活次數越少，攻擊越快
             const baseCD = 2.0;
             const reduction = (3 - STATE.bossLives) * 0.4;
             boss.userData.attackCooldown = Math.max(0.5, baseCD - reduction);
@@ -881,7 +878,6 @@
             projectile.position.y += 3; 
             
             const dir = new THREE.Vector3().subVectors(playerBody.position, projectile.position).normalize();
-            // 速度隨階段提升
             const speed = 20 + (3 - STATE.bossLives) * 5;
             projectile.userData = { velocity: dir.multiplyScalar(speed), life: 5.0 };
             
@@ -890,7 +886,6 @@
         }
     }
 
-    // --- 主循環 ---
     const clock = new THREE.Clock();
 
     function updatePhysics(delta) {
@@ -914,6 +909,17 @@
             velocity.y = 0;
             STATE.canJump = true;
         }
+
+        if (STATE.shakeIntensity > 0) {
+            const rx = (Math.random() - 0.5) * STATE.shakeIntensity;
+            const ry = (Math.random() - 0.5) * STATE.shakeIntensity;
+            camera.position.set(rx, 1.7 + ry, 0);
+            STATE.shakeIntensity -= delta * 2; 
+            if (STATE.shakeIntensity < 0) {
+                STATE.shakeIntensity = 0;
+                camera.position.set(0, 1.7, 0);
+            }
+        }
     }
 
     function updateGameLogic(delta) {
@@ -921,7 +927,6 @@
             if (Math.random() < 0.05) spawnEnemy();
         }
 
-        // 敵人行為
         enemies.forEach(enemy => {
             enemy.lookAt(playerBody.position.x, enemy.position.y, playerBody.position.z);
             enemy.translateZ(enemy.userData.speed * delta);
@@ -929,19 +934,24 @@
             if (enemy.userData.isBoss) updateBoss(enemy, delta);
 
             const dist = enemy.position.distanceTo(playerBody.position);
-            if (dist < (enemy.userData.isBoss ? 4.0 : 2.0)) {
-                if (Math.random() < 0.05) takeDamage(enemy.userData.damage);
+            // 碰撞判定範圍微調
+            if (dist < (enemy.userData.isBoss ? 3.0 : 2.0)) {
+                // 受傷冷卻 (I-Frames) 0.5秒
+                const now = Date.now();
+                if (now - STATE.lastDamageTime > 500) {
+                    takeDamage(enemy.userData.damage, enemy.position);
+                    STATE.lastDamageTime = now;
+                }
             }
         });
 
-        // BOSS 投射物
         for (let i = bossProjectiles.length - 1; i >= 0; i--) {
             const p = bossProjectiles[i];
             p.position.add(p.userData.velocity.clone().multiplyScalar(delta));
             p.userData.life -= delta;
 
             if (p.position.distanceTo(playerBody.position) < 1.5) {
-                takeDamage(20);
+                takeDamage(20, p.position);
                 scene.remove(p);
                 bossProjectiles.splice(i, 1);
                 continue;
@@ -952,16 +962,13 @@
             }
         }
 
-        // 玩家 月牙天衝 投射物
         for (let i = playerProjectiles.length - 1; i >= 0; i--) {
             const p = playerProjectiles[i];
             p.position.add(p.userData.velocity.clone().multiplyScalar(delta));
             p.userData.life -= delta;
             
-            // 旋轉特效
             p.rotateY(5 * delta);
 
-            // 碰撞檢測：BOSS
             if (STATE.bossRef) {
                 const distToBoss = p.position.distanceTo(STATE.bossRef.position);
                 if (distToBoss < 5.0) {
@@ -972,15 +979,12 @@
                 }
             }
 
-            // 碰撞檢測：月亮 (解鎖機制)
             if (STATE.bossInvincible && voidMoon) {
                 const distToMoon = p.position.distanceTo(voidMoon.position);
-                if (distToMoon < 25.0) { // 月亮半徑20
-                    // 解鎖成功
+                if (distToMoon < 25.0) {
                     STATE.bossInvincible = false;
                     STATE.truePowerUnlocked = true;
                     
-                    // 月亮爆炸特效
                     scene.remove(voidMoon);
                     voidMoon = null;
                     const explosion = new THREE.PointLight(0xffffff, 10, 500);
@@ -989,9 +993,8 @@
                     
                     document.getElementById('mission-hint').innerText = "真·月牙之力已覺醒！\n斬殺惡魔！";
                     document.getElementById('mission-hint').style.color = "#ff0000";
-                    document.getElementById('boss-hp-bar').style.background = "#ff0000"; // 恢復紅色血條
+                    document.getElementById('boss-hp-bar').style.background = "#ff0000";
                     
-                    // 移除投射物
                     scene.remove(p);
                     playerProjectiles.splice(i, 1);
                     continue;
@@ -1005,7 +1008,7 @@
         }
     }
 
-    function takeDamage(amount) {
+    function takeDamage(amount, sourcePos) {
         let actualDmg = amount;
         if (STATE.armor > 0) {
             STATE.armor -= amount * 0.5;
@@ -1014,8 +1017,29 @@
         }
         STATE.hp -= actualDmg;
         updateHUD();
-        document.body.style.boxShadow = "inset 0 0 50px rgba(255,0,0,0.5)";
-        setTimeout(() => document.body.style.boxShadow = "none", 100);
+
+        const vignette = document.getElementById('damage-vignette');
+        vignette.style.opacity = 1;
+        setTimeout(() => vignette.style.opacity = 0, 300);
+
+        STATE.shakeIntensity = 0.5;
+
+        if (sourcePos) {
+            const playerDir = new THREE.Vector3();
+            camera.getWorldDirection(playerDir);
+            playerDir.y = 0; playerDir.normalize();
+
+            const enemyDir = new THREE.Vector3().subVectors(sourcePos, playerBody.position);
+            enemyDir.y = 0; enemyDir.normalize();
+
+            const angle = playerDir.angleTo(enemyDir);
+            if (angle > Math.PI / 2) {
+                const warning = document.getElementById('danger-warning');
+                warning.style.display = 'block';
+                setTimeout(() => warning.style.display = 'none', 1000);
+            }
+        }
+
         if (STATE.hp <= 0) {
             STATE.hp = 0;
             STATE.isPlaying = false;
