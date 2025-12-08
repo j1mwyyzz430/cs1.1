@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Night Survival: Boss Fight Balanced</title>
+    <title>Night Survival: Audio Enhanced</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Arial', sans-serif; user-select: none; }
         
@@ -109,6 +109,7 @@
         h1 { color: #f00; font-size: 60px; margin: 0 0 10px 0; text-transform: uppercase; letter-spacing: 5px; text-shadow: 0 0 10px #f00; }
         .controls { text-align: left; background: rgba(255,255,255,0.1); padding: 20px; border-radius: 8px; margin-bottom: 20px; }
         .key { display: inline-block; background: #333; padding: 2px 6px; border-radius: 4px; border: 1px solid #666; color: #ffcc00; font-weight: bold; margin: 0 2px; }
+        #audio-hint { margin-top: 10px; color: #0f0; font-size: 14px; animation: pulse 1s infinite; }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
@@ -190,9 +191,226 @@
             <p><span class="key">B</span> 商店</p>
         </div>
         <p style="margin-top: 30px; font-size: 20px; color: #aaa;">點擊畫面開始</p>
+        <div id="audio-hint">🔊 包含恐怖音效，請開啟聲音</div>
     </div>
 
 <script>
+    // --- 音效引擎 (Web Audio API) ---
+    const SoundGen = {
+        ctx: null,
+        bgmOscillators: [],
+        bgmGain: null,
+        isMuted: false,
+
+        init: function() {
+            if (this.ctx) return;
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AudioContext();
+            this.startBGM();
+        },
+
+        createNoiseBuffer: function() {
+            if (!this.ctx) return null;
+            const bufferSize = this.ctx.sampleRate * 2.0; 
+            const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+            return buffer;
+        },
+
+        playShoot: function(type) {
+            if (!this.ctx) return;
+            const t = this.ctx.currentTime;
+            
+            // 噪音源 (火藥爆炸聲)
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = this.createNoiseBuffer();
+            const noiseFilter = this.ctx.createBiquadFilter();
+            noiseFilter.type = 'lowpass';
+            const noiseGain = this.ctx.createGain();
+
+            noise.connect(noiseFilter);
+            noiseFilter.connect(noiseGain);
+            noiseGain.connect(this.ctx.destination);
+
+            if (type === 'ak' || type === 'm249') {
+                noiseFilter.frequency.setValueAtTime(1200, t);
+                noiseGain.gain.setValueAtTime(0.3, t);
+                noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+                noise.start(t);
+                noise.stop(t + 0.2);
+            } else if (type === 'pistol') {
+                noiseFilter.frequency.setValueAtTime(2000, t);
+                noiseGain.gain.setValueAtTime(0.2, t);
+                noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+                noise.start(t);
+                noise.stop(t + 0.15);
+            } else if (type === 'rpg') {
+                // RPG 發射聲 (咻~)
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.frequency.setValueAtTime(400, t);
+                osc.frequency.exponentialRampToValueAtTime(100, t + 0.5);
+                gain.gain.setValueAtTime(0.3, t);
+                gain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
+                osc.start(t);
+                osc.stop(t + 0.5);
+            }
+        },
+
+        playExplosion: function() {
+            if (!this.ctx) return;
+            const t = this.ctx.currentTime;
+            
+            // 爆炸低頻
+            const osc = this.ctx.createOscillator();
+            osc.type = 'sawtooth'; // 鋸齒波更有衝擊力
+            const oscGain = this.ctx.createGain();
+            osc.connect(oscGain);
+            oscGain.connect(this.ctx.destination);
+
+            osc.frequency.setValueAtTime(100, t);
+            osc.frequency.exponentialRampToValueAtTime(10, t + 0.5);
+            oscGain.gain.setValueAtTime(1.0, t);
+            oscGain.gain.exponentialRampToValueAtTime(0.01, t + 0.8);
+            osc.start(t);
+            osc.stop(t + 0.8);
+
+            // 爆炸噪音
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = this.createNoiseBuffer();
+            const noiseFilter = this.ctx.createBiquadFilter();
+            noiseFilter.type = 'lowpass';
+            noiseFilter.frequency.value = 800;
+            const noiseGain = this.ctx.createGain();
+            noise.connect(noiseFilter);
+            noiseFilter.connect(noiseGain);
+            noiseGain.connect(this.ctx.destination);
+            
+            noiseGain.gain.setValueAtTime(0.8, t);
+            noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 1.0);
+            noise.start(t);
+            noise.stop(t + 1.0);
+        },
+
+        playZombieGroan: function() {
+            if (!this.ctx || Math.random() > 0.3) return; // 限制頻率
+            const t = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            osc.type = 'sawtooth';
+            const gain = this.ctx.createGain();
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'lowpass';
+
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(this.ctx.destination);
+
+            const pitch = 50 + Math.random() * 50;
+            osc.frequency.setValueAtTime(pitch, t);
+            osc.frequency.linearRampToValueAtTime(pitch * 0.8, t + 0.5);
+            
+            filter.frequency.setValueAtTime(300, t);
+            filter.frequency.linearRampToValueAtTime(100, t + 0.5);
+
+            gain.gain.setValueAtTime(0.1, t); // 聲音小一點
+            gain.gain.linearRampToValueAtTime(0, t + 0.6);
+
+            osc.start(t);
+            osc.stop(t + 0.6);
+        },
+
+        playBossScream: function() {
+            if (!this.ctx) return;
+            const t = this.ctx.currentTime;
+            
+            // 雙重振盪器製造不和諧音
+            for(let i=0; i<2; i++) {
+                const osc = this.ctx.createOscillator();
+                osc.type = 'sawtooth';
+                const gain = this.ctx.createGain();
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                const baseFreq = 80;
+                osc.frequency.setValueAtTime(baseFreq + i*10, t);
+                osc.frequency.exponentialRampToValueAtTime(200, t + 0.5);
+                osc.frequency.exponentialRampToValueAtTime(50, t + 2.0);
+
+                gain.gain.setValueAtTime(0.5, t);
+                gain.gain.exponentialRampToValueAtTime(0.01, t + 2.0);
+
+                osc.start(t);
+                osc.stop(t + 2.0);
+            }
+        },
+
+        playMoonSlash: function() {
+            if (!this.ctx) return;
+            const t = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            osc.type = 'sine';
+            const gain = this.ctx.createGain();
+            
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+
+            // 高頻掃描 (科幻感)
+            osc.frequency.setValueAtTime(800, t);
+            osc.frequency.exponentialRampToValueAtTime(2000, t + 0.1);
+            osc.frequency.exponentialRampToValueAtTime(100, t + 0.5);
+
+            gain.gain.setValueAtTime(0.3, t);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
+
+            osc.start(t);
+            osc.stop(t + 0.5);
+        },
+
+        startBGM: function() {
+            if (!this.ctx) return;
+            // 創建一個深沉的背景音 (Drone)
+            const osc1 = this.ctx.createOscillator();
+            const osc2 = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            const filter = this.ctx.createBiquadFilter();
+            
+            osc1.type = 'sawtooth';
+            osc1.frequency.value = 50; 
+            osc2.type = 'sine';
+            osc2.frequency.value = 52; // 輕微走音製造恐怖感
+
+            filter.type = 'lowpass';
+            filter.frequency.value = 200;
+
+            osc1.connect(filter);
+            osc2.connect(filter);
+            filter.connect(gain);
+            gain.connect(this.ctx.destination);
+
+            // LFO 讓音量緩慢波動
+            const lfo = this.ctx.createOscillator();
+            lfo.frequency.value = 0.2; // 5秒一次循環
+            const lfoGain = this.ctx.createGain();
+            lfoGain.gain.value = 0.05; // 波動幅度
+            lfo.connect(lfoGain);
+            lfoGain.connect(gain.gain);
+            
+            gain.gain.value = 0.15; // 基礎音量
+            
+            osc1.start();
+            osc2.start();
+            lfo.start();
+            
+            this.bgmOscillators.push(osc1, osc2, lfo);
+            this.bgmGain = gain;
+        }
+    };
+
     // --- 遊戲參數 ---
     const CONFIG = {
         walkSpeed: 24.0,  
@@ -222,16 +440,16 @@
         bossInvincible: false,
         truePowerUnlocked: false,
         shakeIntensity: 0,
-        lastDamageTime: 0 // 新增：受傷冷卻時間
+        lastDamageTime: 0
     };
 
     const WEAPON_DEFS = {
-        ak:   { name: "AK-47",  damage: 35,   rate: 180,  range: 100, type: 'hitscan', color: 0xffaa00, model: 'rifle', knockback: 0.8 },
-        m249: { name: "M249",   damage: 25,   rate: 60,   range: 100, type: 'hitscan', color: 0x00ff00, model: 'm249', knockback: 0.6 },
-        rpg:  { name: "RPG",    damage: 800,  rate: 1200, range: 200, type: 'explosive', color: 0xff0000, model: 'rpg', knockback: 5.0 },
-        pistol:{ name: "Pistol",damage: 20,   rate: 300,  range: 60,  type: 'hitscan', color: 0xcccccc, model: 'pistol', knockback: 0.5 },
-        axe:  { name: "Axe",    damage: 150,  rate: 600,  range: 4,   type: 'melee',   color: 0xffffff, model: 'axe', knockback: 3.0 },
-        moon: { name: "MOON BLADE", damage: 1500, rate: 600, range: 200, type: 'projectile', color: 0x00ffff, model: 'moon', knockback: 0 }
+        ak:   { name: "AK-47",  damage: 35,   rate: 180,  range: 100, type: 'hitscan', color: 0xffaa00, model: 'rifle', knockback: 0.8, sound: 'ak' },
+        m249: { name: "M249",   damage: 25,   rate: 60,   range: 100, type: 'hitscan', color: 0x00ff00, model: 'm249', knockback: 0.6, sound: 'm249' },
+        rpg:  { name: "RPG",    damage: 800,  rate: 1200, range: 200, type: 'explosive', color: 0xff0000, model: 'rpg', knockback: 5.0, sound: 'rpg' },
+        pistol:{ name: "Pistol",damage: 20,   rate: 300,  range: 60,  type: 'hitscan', color: 0xcccccc, model: 'pistol', knockback: 0.5, sound: 'pistol' },
+        axe:  { name: "Axe",    damage: 150,  rate: 600,  range: 4,   type: 'melee',   color: 0xffffff, model: 'axe', knockback: 3.0, sound: 'swing' },
+        moon: { name: "MOON BLADE", damage: 1500, rate: 600, range: 200, type: 'projectile', color: 0x00ffff, model: 'moon', knockback: 0, sound: 'moon' }
     };
 
     let inventory = [WEAPON_DEFS.ak, WEAPON_DEFS.pistol, WEAPON_DEFS.axe];
@@ -370,6 +588,8 @@
     function spawnEnemy(isBoss = false) {
         if (STATE.phase2 && !isBoss) return; 
 
+        if (isBoss) SoundGen.playBossScream(); // Boss 出場音效
+
         const enemyGroup = new THREE.Group();
         const scale = isBoss ? 3.5 : 1.0;
         
@@ -415,12 +635,11 @@
         const dist = isBoss ? 60 : (30 + Math.random() * 40);
         enemyGroup.position.set(Math.sin(angle)*dist, 0, Math.cos(angle)*dist);
 
-        // 平衡調整：BOSS 速度降低，傷害降低
         enemyGroup.userData = {
             hp: isBoss ? 10000 : 100, 
             maxHp: isBoss ? 10000 : 100,
-            speed: isBoss ? 4.0 : (3.0 + Math.random() * 4), // Boss 速度從 6.0 降至 4.0
-            damage: isBoss ? 15 : 5, // Boss 傷害從 25 降至 15
+            speed: isBoss ? 4.0 : (3.0 + Math.random() * 4),
+            damage: isBoss ? 15 : 5,
             isBoss: isBoss,
             score: isBoss ? 50000 : 100,
             attackCooldown: 0
@@ -454,6 +673,7 @@
     function enterPhaseTwo() {
         if (STATE.phase2) return;
         STATE.phase2 = true;
+        SoundGen.playBossScream(); // 轉場音效
 
         STATE.hp = 100;
         STATE.armor = 100;
@@ -516,7 +736,10 @@
 
     document.addEventListener('mousedown', (e) => {
         if (STATE.isPlaying && !STATE.isShopOpen && e.button === 0) STATE.isFiring = true;
-        else if (!STATE.isPlaying && !STATE.isShopOpen) document.body.requestPointerLock();
+        else if (!STATE.isPlaying && !STATE.isShopOpen) {
+            document.body.requestPointerLock();
+            SoundGen.init(); // 啟動音效引擎
+        }
     });
 
     document.addEventListener('mouseup', () => STATE.isFiring = false);
@@ -610,6 +833,10 @@
         if (now - STATE.lastShotTime < weapon.rate) return;
         STATE.lastShotTime = now;
 
+        // 播放射擊音效
+        if (weapon.model === 'moon') SoundGen.playMoonSlash();
+        else SoundGen.playShoot(weapon.sound || 'pistol');
+
         const model = models[weapon.model];
         
         if (model) {
@@ -659,14 +886,9 @@
                     let target = hit.object;
                     while(target.parent && !target.userData.hp) target = target.parent;
                     if (target.userData.hp) {
-                        // --- 擊退邏輯 (Knockback) ---
-                        // 計算從玩家指向敵人的向量
                         const pushDir = hit.point.clone().sub(playerBody.position).normalize();
-                        
-                        // 確保 Boss 也會被擊退，但幅度較小
                         const knockbackForce = (weapon.knockback || 0.5);
-                        const resistance = target.userData.isBoss ? 0.2 : 1.0; // Boss 只有 20% 的擊退效果
-                        
+                        const resistance = target.userData.isBoss ? 0.2 : 1.0;
                         target.position.add(pushDir.multiplyScalar(knockbackForce * resistance));
                         
                         damageEnemy(target, weapon.damage);
@@ -705,6 +927,7 @@
     }
 
     function createExplosion(point, damage) {
+        SoundGen.playExplosion(); // 爆炸音效
         const light = new THREE.PointLight(0xffaa00, 5, 20);
         light.position.copy(point);
         light.position.y += 1;
@@ -714,7 +937,6 @@
         enemies.forEach(enemy => {
             if (enemy.position.distanceTo(point) < 10) {
                 damageEnemy(enemy, damage);
-                // 爆炸擊退
                 const dir = enemy.position.clone().sub(point).normalize();
                 const force = enemy.userData.isBoss ? 1.0 : 4.0;
                 enemy.position.add(dir.multiplyScalar(force));
@@ -745,6 +967,7 @@
             if (enemy.userData.hp <= 0) {
                 if (STATE.bossLives > 0) {
                     STATE.bossLives--;
+                    SoundGen.playBossScream(); // 復活吼叫
                     document.getElementById('boss-lives').innerText = `LIVES: ${STATE.bossLives}`;
                     enemy.userData.hp = enemy.userData.maxHp;
                     document.getElementById('boss-hp-bar').style.width = '100%';
@@ -756,7 +979,7 @@
                     setTimeout(() => announce.style.opacity = 0, 1500);
 
                     enemy.scale.multiplyScalar(1.1); 
-                    enemy.userData.speed += 1.0; // 平衡：復活後速度增加量減少 (原本+2)
+                    enemy.userData.speed += 1.0;
 
                     if (STATE.bossLives === 0) {
                         STATE.bossInvincible = true;
@@ -932,11 +1155,10 @@
             enemy.translateZ(enemy.userData.speed * delta);
 
             if (enemy.userData.isBoss) updateBoss(enemy, delta);
+            else SoundGen.playZombieGroan(); // 殭屍隨機叫聲
 
             const dist = enemy.position.distanceTo(playerBody.position);
-            // 碰撞判定範圍微調
             if (dist < (enemy.userData.isBoss ? 3.0 : 2.0)) {
-                // 受傷冷卻 (I-Frames) 0.5秒
                 const now = Date.now();
                 if (now - STATE.lastDamageTime > 500) {
                     takeDamage(enemy.userData.damage, enemy.position);
@@ -984,6 +1206,7 @@
                 if (distToMoon < 25.0) {
                     STATE.bossInvincible = false;
                     STATE.truePowerUnlocked = true;
+                    SoundGen.playExplosion(); // 虛空之月爆炸
                     
                     scene.remove(voidMoon);
                     voidMoon = null;
