@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Night Survival: The Final Moon</title>
+    <title>Night Survival: The Final Moon (Audio Fix)</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Arial', sans-serif; user-select: none; }
         
@@ -182,7 +182,8 @@
     </div>
 
 <script>
-    // --- 音效引擎 2.0 (Web Audio API) ---
+    // --- 音效引擎 2.1 (修復崩潰版) ---
+    // 修正了 exponentialRampToValueAtTime 導致的 AudioContext 崩潰問題
     const SoundGen = {
         ctx: null,
         bgmOscillators: [],
@@ -190,7 +191,10 @@
         isBossMusic: false,
 
         init: function() {
-            if (this.ctx) return;
+            if (this.ctx) {
+                if(this.ctx.state === 'suspended') this.ctx.resume();
+                return;
+            }
             const AudioContext = window.AudioContext || window.webkitAudioContext;
             this.ctx = new AudioContext();
             this.startBGM(false);
@@ -209,187 +213,203 @@
 
         playShoot: function(type) {
             if (!this.ctx) return;
-            const t = this.ctx.currentTime;
-            
-            const noise = this.ctx.createBufferSource();
-            noise.buffer = this.createNoiseBuffer();
-            const noiseFilter = this.ctx.createBiquadFilter();
-            noiseFilter.type = 'lowpass';
-            const noiseGain = this.ctx.createGain();
+            try {
+                const t = this.ctx.currentTime;
+                
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = this.createNoiseBuffer();
+                const noiseFilter = this.ctx.createBiquadFilter();
+                noiseFilter.type = 'lowpass';
+                const noiseGain = this.ctx.createGain();
 
-            noise.connect(noiseFilter);
-            noiseFilter.connect(noiseGain);
-            noiseGain.connect(this.ctx.destination);
+                noise.connect(noiseFilter);
+                noiseFilter.connect(noiseGain);
+                noiseGain.connect(this.ctx.destination);
 
-            if (type === 'ak' || type === 'm249') {
-                noiseFilter.frequency.setValueAtTime(1200, t);
-                noiseGain.gain.setValueAtTime(0.3, t);
-                noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
-                noise.start(t);
-                noise.stop(t + 0.2);
-            } else if (type === 'pistol') {
-                noiseFilter.frequency.setValueAtTime(2000, t);
-                noiseGain.gain.setValueAtTime(0.2, t);
-                noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
-                noise.start(t);
-                noise.stop(t + 0.15);
-            } else if (type === 'rpg') {
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.frequency.setValueAtTime(400, t);
-                osc.frequency.exponentialRampToValueAtTime(100, t + 0.5);
-                gain.gain.setValueAtTime(0.3, t);
-                gain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
-                osc.start(t);
-                osc.stop(t + 0.5);
-            }
+                if (type === 'ak' || type === 'm249') {
+                    noiseFilter.frequency.setValueAtTime(1200, t);
+                    noiseGain.gain.setValueAtTime(0.3, t);
+                    noiseGain.gain.linearRampToValueAtTime(0, t + 0.15); // 使用 linearRamp 避免崩潰
+                    noise.start(t);
+                    noise.stop(t + 0.2);
+                } else if (type === 'pistol') {
+                    noiseFilter.frequency.setValueAtTime(2000, t);
+                    noiseGain.gain.setValueAtTime(0.2, t);
+                    noiseGain.gain.linearRampToValueAtTime(0, t + 0.1);
+                    noise.start(t);
+                    noise.stop(t + 0.15);
+                } else if (type === 'rpg') {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.frequency.setValueAtTime(400, t);
+                    osc.frequency.exponentialRampToValueAtTime(100, t + 0.5);
+                    gain.gain.setValueAtTime(0.3, t);
+                    gain.gain.linearRampToValueAtTime(0, t + 0.5);
+                    osc.start(t);
+                    osc.stop(t + 0.5);
+                }
+            } catch(e) { console.error("Audio Error:", e); }
         },
 
         playExplosion: function() {
             if (!this.ctx) return;
-            const t = this.ctx.currentTime;
-            const osc = this.ctx.createOscillator();
-            osc.type = 'sawtooth'; 
-            const oscGain = this.ctx.createGain();
-            osc.connect(oscGain);
-            oscGain.connect(this.ctx.destination);
+            try {
+                const t = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                osc.type = 'sawtooth'; 
+                const oscGain = this.ctx.createGain();
+                osc.connect(oscGain);
+                oscGain.connect(this.ctx.destination);
 
-            osc.frequency.setValueAtTime(100, t);
-            osc.frequency.exponentialRampToValueAtTime(10, t + 0.5);
-            oscGain.gain.setValueAtTime(1.0, t);
-            oscGain.gain.exponentialRampToValueAtTime(0.01, t + 0.8);
-            osc.start(t);
-            osc.stop(t + 0.8);
+                osc.frequency.setValueAtTime(100, t);
+                osc.frequency.exponentialRampToValueAtTime(10, t + 0.5);
+                oscGain.gain.setValueAtTime(1.0, t);
+                oscGain.gain.linearRampToValueAtTime(0, t + 0.8);
+                osc.start(t);
+                osc.stop(t + 0.8);
 
-            const noise = this.ctx.createBufferSource();
-            noise.buffer = this.createNoiseBuffer();
-            const noiseGain = this.ctx.createGain();
-            noise.connect(noiseGain);
-            noiseGain.connect(this.ctx.destination);
-            noiseGain.gain.setValueAtTime(0.8, t);
-            noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 1.0);
-            noise.start(t);
-            noise.stop(t + 1.0);
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = this.createNoiseBuffer();
+                const noiseGain = this.ctx.createGain();
+                noise.connect(noiseGain);
+                noiseGain.connect(this.ctx.destination);
+                noiseGain.gain.setValueAtTime(0.8, t);
+                noiseGain.gain.linearRampToValueAtTime(0, t + 1.0);
+                noise.start(t);
+                noise.stop(t + 1.0);
+            } catch(e) {}
         },
 
         playZombieGroan: function() {
             if (!this.ctx || Math.random() > 0.3) return; 
-            const t = this.ctx.currentTime;
-            const osc = this.ctx.createOscillator();
-            osc.type = 'sawtooth';
-            const gain = this.ctx.createGain();
-            const filter = this.ctx.createBiquadFilter();
-            filter.type = 'lowpass';
-            osc.connect(filter);
-            filter.connect(gain);
-            gain.connect(this.ctx.destination);
+            try {
+                const t = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                osc.type = 'sawtooth';
+                const gain = this.ctx.createGain();
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
 
-            const pitch = 50 + Math.random() * 50;
-            osc.frequency.setValueAtTime(pitch, t);
-            osc.frequency.linearRampToValueAtTime(pitch * 0.8, t + 0.5);
-            filter.frequency.setValueAtTime(300, t);
-            filter.frequency.linearRampToValueAtTime(100, t + 0.5);
-            gain.gain.setValueAtTime(0.1, t);
-            gain.gain.linearRampToValueAtTime(0, t + 0.6);
-            osc.start(t);
-            osc.stop(t + 0.6);
+                const pitch = 50 + Math.random() * 50;
+                osc.frequency.setValueAtTime(pitch, t);
+                osc.frequency.linearRampToValueAtTime(pitch * 0.8, t + 0.5);
+                filter.frequency.setValueAtTime(300, t);
+                filter.frequency.linearRampToValueAtTime(100, t + 0.5);
+                gain.gain.setValueAtTime(0.1, t);
+                gain.gain.linearRampToValueAtTime(0, t + 0.6);
+                osc.start(t);
+                osc.stop(t + 0.6);
+            } catch(e) {}
         },
 
-        // 高階殭屍奸笑
+        // 高階殭屍奸笑 (修復版)
         playEvilLaugh: function() {
             if (!this.ctx) return;
-            const t = this.ctx.currentTime;
-            const osc = this.ctx.createOscillator();
-            osc.type = 'sawtooth';
-            const gain = this.ctx.createGain();
-            osc.connect(gain);
-            gain.connect(this.ctx.destination);
-
-            // 快速顫音
-            osc.frequency.setValueAtTime(600, t);
-            osc.frequency.linearRampToValueAtTime(400, t + 0.1);
-            osc.frequency.linearRampToValueAtTime(600, t + 0.2);
-            osc.frequency.linearRampToValueAtTime(300, t + 0.4);
-
-            gain.gain.setValueAtTime(0.1, t);
-            gain.gain.linearRampToValueAtTime(0, t + 0.4);
-            osc.start(t);
-            osc.stop(t + 0.4);
-        },
-
-        // 惡魔咆哮/大笑
-        playBossLaugh: function() {
-            if (!this.ctx) return;
-            const t = this.ctx.currentTime;
-            
-            // 低頻失真笑聲
-            for(let i=0; i<3; i++) {
+            try {
+                const t = this.ctx.currentTime;
                 const osc = this.ctx.createOscillator();
-                osc.type = 'square';
+                osc.type = 'sawtooth';
                 const gain = this.ctx.createGain();
                 osc.connect(gain);
                 gain.connect(this.ctx.destination);
 
-                const startFreq = 150 - (i*30);
-                osc.frequency.setValueAtTime(startFreq, t + i*0.2);
-                osc.frequency.exponentialRampToValueAtTime(startFreq * 1.5, t + i*0.2 + 0.1);
-                osc.frequency.exponentialRampToValueAtTime(50, t + i*0.2 + 0.4);
+                // 快速顫音
+                osc.frequency.setValueAtTime(600, t);
+                osc.frequency.linearRampToValueAtTime(400, t + 0.1);
+                osc.frequency.linearRampToValueAtTime(600, t + 0.2);
+                osc.frequency.linearRampToValueAtTime(300, t + 0.4);
 
-                gain.gain.setValueAtTime(0, t + i*0.2);
-                gain.gain.linearRampToValueAtTime(0.4, t + i*0.2 + 0.05);
-                gain.gain.exponentialRampToValueAtTime(0.01, t + i*0.2 + 0.5);
+                gain.gain.setValueAtTime(0.1, t);
+                gain.gain.linearRampToValueAtTime(0, t + 0.4); // 安全歸零
+                osc.start(t);
+                osc.stop(t + 0.4);
+            } catch(e) { console.warn("Laugh error"); }
+        },
 
-                osc.start(t + i*0.2);
-                osc.stop(t + i*0.2 + 0.6);
-            }
+        // 惡魔咆哮/大笑 (修復版)
+        playBossLaugh: function() {
+            if (!this.ctx) return;
+            try {
+                const t = this.ctx.currentTime;
+                
+                // 低頻失真笑聲
+                for(let i=0; i<3; i++) {
+                    const osc = this.ctx.createOscillator();
+                    osc.type = 'square';
+                    const gain = this.ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+
+                    const startFreq = 150 - (i*30);
+                    // 確保頻率不為負或0
+                    const endFreq = Math.max(20, startFreq * 1.5);
+                    const dropFreq = 50;
+
+                    osc.frequency.setValueAtTime(startFreq, t + i*0.2);
+                    osc.frequency.linearRampToValueAtTime(endFreq, t + i*0.2 + 0.1);
+                    osc.frequency.linearRampToValueAtTime(dropFreq, t + i*0.2 + 0.4);
+
+                    gain.gain.setValueAtTime(0, t + i*0.2);
+                    gain.gain.linearRampToValueAtTime(0.3, t + i*0.2 + 0.05);
+                    gain.gain.linearRampToValueAtTime(0, t + i*0.2 + 0.5); // 使用 Linear 避免崩潰
+
+                    osc.start(t + i*0.2);
+                    osc.stop(t + i*0.2 + 0.6);
+                }
+            } catch(e) { console.warn("Boss sound error"); }
         },
 
         playMoonSlash: function() {
             if (!this.ctx) return;
-            const t = this.ctx.currentTime;
-            const osc = this.ctx.createOscillator();
-            osc.type = 'sine';
-            const gain = this.ctx.createGain();
-            osc.connect(gain);
-            gain.connect(this.ctx.destination);
-            osc.frequency.setValueAtTime(800, t);
-            osc.frequency.exponentialRampToValueAtTime(2000, t + 0.1);
-            osc.frequency.exponentialRampToValueAtTime(100, t + 0.5);
-            gain.gain.setValueAtTime(0.3, t);
-            gain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
-            osc.start(t);
-            osc.stop(t + 0.5);
+            try {
+                const t = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                osc.type = 'sine';
+                const gain = this.ctx.createGain();
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.frequency.setValueAtTime(800, t);
+                osc.frequency.exponentialRampToValueAtTime(2000, t + 0.1);
+                osc.frequency.exponentialRampToValueAtTime(100, t + 0.5);
+                gain.gain.setValueAtTime(0.3, t);
+                gain.gain.linearRampToValueAtTime(0, t + 0.5);
+                osc.start(t);
+                osc.stop(t + 0.5);
+            } catch(e) {}
         },
 
-        // 黑月斬擊音效 (重低音)
         playBlackMoonSound: function() {
             if (!this.ctx) return;
-            const t = this.ctx.currentTime;
-            
-            // 低頻衝擊
-            const osc = this.ctx.createOscillator();
-            osc.type = 'sawtooth';
-            const gain = this.ctx.createGain();
-            const filter = this.ctx.createBiquadFilter();
-            filter.type = 'lowpass';
+            try {
+                const t = this.ctx.currentTime;
+                
+                const osc = this.ctx.createOscillator();
+                osc.type = 'sawtooth';
+                const gain = this.ctx.createGain();
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
 
-            osc.connect(filter);
-            filter.connect(gain);
-            gain.connect(this.ctx.destination);
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
 
-            osc.frequency.setValueAtTime(50, t);
-            osc.frequency.exponentialRampToValueAtTime(10, t + 0.5);
-            
-            filter.frequency.setValueAtTime(800, t);
-            filter.frequency.exponentialRampToValueAtTime(50, t + 0.4);
+                osc.frequency.setValueAtTime(50, t);
+                osc.frequency.exponentialRampToValueAtTime(10, t + 0.5);
+                
+                filter.frequency.setValueAtTime(800, t);
+                filter.frequency.exponentialRampToValueAtTime(50, t + 0.4);
 
-            gain.gain.setValueAtTime(0.8, t);
-            gain.gain.exponentialRampToValueAtTime(0.01, t + 0.6);
+                gain.gain.setValueAtTime(0.8, t);
+                gain.gain.linearRampToValueAtTime(0, t + 0.6);
 
-            osc.start(t);
-            osc.stop(t + 0.6);
+                osc.start(t);
+                osc.stop(t + 0.6);
+            } catch(e) {}
         },
 
         stopBGM: function() {
@@ -399,69 +419,68 @@
 
         startBGM: function(isBoss) {
             if (!this.ctx) return;
-            this.stopBGM();
-            this.isBossMusic = isBoss;
+            try {
+                this.stopBGM();
+                this.isBossMusic = isBoss;
 
-            const gain = this.ctx.createGain();
-            gain.connect(this.ctx.destination);
-            this.bgmGain = gain;
-            gain.gain.value = 0.15;
+                const gain = this.ctx.createGain();
+                gain.connect(this.ctx.destination);
+                this.bgmGain = gain;
+                gain.gain.value = 0.15;
 
-            if (isBoss) {
-                // 惡魔 BGM: 快速、不和諧、壓迫感
-                const osc1 = this.ctx.createOscillator();
-                osc1.type = 'sawtooth';
-                osc1.frequency.value = 40; 
-                
-                const osc2 = this.ctx.createOscillator();
-                osc2.type = 'square';
-                osc2.frequency.value = 45; // 嚴重不和諧
+                if (isBoss) {
+                    const osc1 = this.ctx.createOscillator();
+                    osc1.type = 'sawtooth';
+                    osc1.frequency.value = 40; 
+                    
+                    const osc2 = this.ctx.createOscillator();
+                    osc2.type = 'square';
+                    osc2.frequency.value = 45; 
 
-                // 模擬心跳/警報的 LFO
-                const lfo = this.ctx.createOscillator();
-                lfo.frequency.value = 4; // 快速脈衝
-                const lfoGain = this.ctx.createGain();
-                lfoGain.gain.value = 50; 
-                lfo.connect(lfoGain);
-                lfoGain.connect(osc1.frequency);
+                    const lfo = this.ctx.createOscillator();
+                    lfo.frequency.value = 4; 
+                    const lfoGain = this.ctx.createGain();
+                    lfoGain.gain.value = 50; 
+                    lfo.connect(lfoGain);
+                    lfoGain.connect(osc1.frequency);
 
-                osc1.connect(gain);
-                osc2.connect(gain);
-                
-                osc1.start();
-                osc2.start();
-                lfo.start();
-                this.bgmOscillators.push(osc1, osc2, lfo);
-            } else {
-                // 恐怖氛圍 Drone
-                const osc1 = this.ctx.createOscillator();
-                const osc2 = this.ctx.createOscillator();
-                const filter = this.ctx.createBiquadFilter();
-                
-                osc1.type = 'sawtooth';
-                osc1.frequency.value = 50; 
-                osc2.type = 'sine';
-                osc2.frequency.value = 52; 
+                    osc1.connect(gain);
+                    osc2.connect(gain);
+                    
+                    osc1.start();
+                    osc2.start();
+                    lfo.start();
+                    this.bgmOscillators.push(osc1, osc2, lfo);
+                } else {
+                    const osc1 = this.ctx.createOscillator();
+                    const osc2 = this.ctx.createOscillator();
+                    const filter = this.ctx.createBiquadFilter();
+                    
+                    osc1.type = 'sawtooth';
+                    osc1.frequency.value = 50; 
+                    osc2.type = 'sine';
+                    osc2.frequency.value = 52; 
 
-                filter.type = 'lowpass';
-                filter.frequency.value = 200;
+                    filter.type = 'lowpass';
+                    filter.frequency.value = 200;
 
-                osc1.connect(filter);
-                osc2.connect(filter);
-                filter.connect(gain);
+                    osc1.connect(filter);
+                    osc2.connect(filter);
+                    filter.connect(gain);
 
-                const lfo = this.ctx.createOscillator();
-                lfo.frequency.value = 0.2; 
-                const lfoGain = this.ctx.createGain();
-                lfoGain.gain.value = 0.05; 
-                lfo.connect(lfoGain);
-                lfoGain.connect(gain.gain);
-                
-                osc1.start();
-                osc2.start();
-                lfo.start();
-                this.bgmOscillators.push(osc1, osc2, lfo);
-            }
+                    const lfo = this.ctx.createOscillator();
+                    lfo.frequency.value = 0.2; 
+                    const lfoGain = this.ctx.createGain();
+                    lfoGain.gain.value = 0.05; 
+                    lfo.connect(lfoGain);
+                    lfoGain.connect(gain.gain);
+                    
+                    osc1.start();
+                    osc2.start();
+                    lfo.start();
+                    this.bgmOscillators.push(osc1, osc2, lfo);
+                }
+            } catch(e) { console.error("BGM Error", e); }
         }
     };
 
