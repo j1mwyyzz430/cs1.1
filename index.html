@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Night Survival: Demon Slayer</title>
+    <title>Night Survival: Moon Awakening</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Arial', sans-serif; user-select: none; }
         
@@ -28,7 +28,7 @@
             box-shadow: 0 0 20px #f00;
         }
         #boss-hp-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #ff0000, #880000); transition: width 0.2s; }
-        #boss-label { position: absolute; top: -25px; left: 0; color: #f00; font-weight: bold; text-shadow: 1px 1px 0 #000; letter-spacing: 2px; font-size: 20px; }
+        #boss-label { position: absolute; top: -25px; left: 0; color: #f00; font-weight: bold; text-shadow: 1px 1px 0 #000; letter-spacing: 2px; font-size: 20px; display: flex; justify-content: space-between; width: 100%; }
 
         /* 底部資訊欄 */
         #hud-bottom { position: absolute; bottom: 30px; left: 30px; display: flex; gap: 30px; color: #fff; text-shadow: 2px 2px 0 #000; }
@@ -44,13 +44,23 @@
         .slot span { font-size: 10px; position: absolute; top: 2px; left: 4px; }
         .w-name { font-size: 12px; text-align: center; }
 
-        /* 波數提示 */
+        /* 波數與劇情提示 */
         #wave-announce {
             position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%);
-            font-size: 80px; color: #ff0000; font-weight: 900; text-shadow: 0 0 20px #f00;
+            font-size: 60px; color: #ff0000; font-weight: 900; text-shadow: 0 0 20px #f00;
             opacity: 0; transition: opacity 1s; pointer-events: none; text-align: center; width: 100%;
+            white-space: pre-line;
         }
         
+        /* 任務提示 (鎖血時顯示) */
+        #mission-hint {
+            position: absolute; top: 15%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 24px; color: #00ffff; font-weight: bold; text-shadow: 0 0 10px #00f;
+            text-align: center; display: none; animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+
         /* 二階段特效覆蓋層 */
         #phase2-flash {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -88,11 +98,15 @@
         <div id="phase2-flash"></div>
         
         <div id="boss-bar-container">
-            <div id="boss-label">⚠️ DEMON LORD ⚠️</div>
+            <div id="boss-label">
+                <span>⚠️ DEMON LORD ⚠️</span>
+                <span id="boss-lives">LIVES: 3</span>
+            </div>
             <div id="boss-hp-bar"></div>
         </div>
 
         <div id="wave-announce">WAVE 1</div>
+        <div id="mission-hint">BOSS 已進入虛空無敵狀態！<br>向空中的「虛空之月」發射月牙天衝！</div>
 
         <div id="hud-bottom">
             <div class="hud-box"><span class="hud-label">HEALTH</span><span class="hud-value c-green" id="hp-val">100</span></div>
@@ -179,8 +193,11 @@
         enemiesRemaining: 0,
         bossActive: false,
         isFiring: false,
-        phase2: false, // 二階段標記
-        bossRef: null  // 儲存BOSS引用
+        phase2: false,
+        bossRef: null,
+        bossLives: 3,        // BOSS 復活次數
+        bossInvincible: false, // BOSS 無敵狀態
+        truePowerUnlocked: false // 是否解鎖真·月牙
     };
 
     const WEAPON_DEFS = {
@@ -189,8 +206,8 @@
         rpg:  { name: "RPG",    damage: 800,  rate: 1200, range: 200, type: 'explosive', color: 0xff0000, model: 'rpg' },
         pistol:{ name: "Pistol",damage: 20,   rate: 300,  range: 60,  type: 'hitscan', color: 0xcccccc, model: 'pistol' },
         axe:  { name: "Axe",    damage: 150,  rate: 600,  range: 4,   type: 'melee',   color: 0xffffff, model: 'axe' },
-        // 神器
-        moon: { name: "MOON BLADE", damage: 2000, rate: 250, range: 8, type: 'melee', color: 0x00ffff, model: 'moon' }
+        // 神器 - 改為 projectile 類型，發射月牙天衝
+        moon: { name: "MOON BLADE", damage: 1500, rate: 600, range: 200, type: 'projectile', color: 0x00ffff, model: 'moon' }
     };
 
     let inventory = [WEAPON_DEFS.ak, WEAPON_DEFS.pistol, WEAPON_DEFS.axe];
@@ -259,7 +276,6 @@
 
     // --- 月牙之刃 (Moon Blade) ---
     const gMoon = new THREE.Group();
-    // 使用 RingGeometry 製作彎月
     const moonGeo = new THREE.RingGeometry(0.3, 0.5, 32, 1, 0, Math.PI * 1.2);
     const moonMat = new THREE.MeshStandardMaterial({ 
         color: 0x00ffff, 
@@ -303,7 +319,7 @@
     }
     createMap();
 
-    // 宇宙星空 (二階段用)
+    // 宇宙星空與月亮 (二階段用)
     const starsGeometry = new THREE.BufferGeometry();
     const starsCount = 2000;
     const posArray = new Float32Array(starsCount * 3);
@@ -316,34 +332,34 @@
     starField.visible = false;
     scene.add(starField);
 
+    let voidMoon = null;
+
     // --- 敵人系統 ---
     let enemies = [];
     let bossProjectiles = [];
+    let playerProjectiles = []; // 玩家的月牙天衝
     
     const matZombieGreen = new THREE.MeshStandardMaterial({ color: 0x55aa55 });
     const matBossRed = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0x330000 });
     const matWing = new THREE.MeshStandardMaterial({ color: 0x220000, side: THREE.DoubleSide });
 
     function spawnEnemy(isBoss = false) {
-        if (STATE.phase2 && !isBoss) return; // 二階段不生成小怪
+        if (STATE.phase2 && !isBoss) return; 
 
         const enemyGroup = new THREE.Group();
         const scale = isBoss ? 3.5 : 1.0;
         
-        // 身體
-        const bodyMat = isBoss ? matBossRed : matZombieGreen;
+        const bodyMat = isBoss ? matBossRed.clone() : matZombieGreen;
         const bodyMesh = new THREE.Mesh(new THREE.BoxGeometry(0.6*scale, 1.0*scale, 0.4*scale), bodyMat);
         bodyMesh.position.y = (1.0*scale) / 2;
         bodyMesh.castShadow = true;
         enemyGroup.add(bodyMesh);
 
-        // 頭部
         const headGroup = new THREE.Group();
         headGroup.position.y = (1.0*scale) + (0.3*scale);
         const skullMesh = new THREE.Mesh(new THREE.BoxGeometry(0.6*scale, 0.6*scale, 0.6*scale), bodyMat);
         headGroup.add(skullMesh);
         
-        // 眼睛
         const eyeMat = new THREE.MeshStandardMaterial({ color: isBoss ? 0xffff00 : 0xffffff, emissive: isBoss ? 0xff0000 : 0x000000 });
         const leftEye = new THREE.Mesh(new THREE.BoxGeometry(0.15*scale, 0.15*scale, 0.05), eyeMat);
         leftEye.position.set(-0.15*scale, 0.1*scale, 0.31*scale);
@@ -354,7 +370,6 @@
 
         enemyGroup.add(headGroup);
 
-        // BOSS 特有：惡魔翅膀
         if (isBoss) {
             const wingGeo = new THREE.BoxGeometry(1.5*scale, 0.8*scale, 0.1*scale);
             const leftWing = new THREE.Mesh(wingGeo, matWing);
@@ -372,7 +387,6 @@
             STATE.bossRef = enemyGroup;
         }
 
-        // 位置
         const angle = Math.random() * Math.PI * 2;
         const dist = isBoss ? 60 : (30 + Math.random() * 40);
         enemyGroup.position.set(Math.sin(angle)*dist, 0, Math.cos(angle)*dist);
@@ -404,7 +418,6 @@
             spawnEnemy(true);
             STATE.bossActive = true;
             document.getElementById('boss-bar-container').style.display = 'block';
-            // 初始小怪
             for(let i=0; i<30; i++) spawnEnemy();
         } else {
             let count = waveNum === 1 ? 10 : 25;
@@ -417,17 +430,23 @@
         if (STATE.phase2) return;
         STATE.phase2 = true;
 
-        // 視覺特效
+        // 補滿狀態
+        STATE.hp = 100;
+        STATE.armor = 100;
+        updateHUD();
+
         const flash = document.getElementById('phase2-flash');
         flash.style.opacity = 1;
         setTimeout(() => flash.style.opacity = 0, 2000);
 
-        document.getElementById('wave-announce').innerText = "VOID REALM";
-        document.getElementById('wave-announce').style.opacity = 1;
-        document.getElementById('wave-announce').style.color = "#00ffff";
-        document.getElementById('wave-announce').style.textShadow = "0 0 20px #00ffff";
+        const announce = document.getElementById('wave-announce');
+        announce.innerText = "VOID REALM\n(HP/ARMOR RESTORED)";
+        announce.style.opacity = 1;
+        announce.style.color = "#00ffff";
+        announce.style.textShadow = "0 0 20px #00ffff";
+        setTimeout(() => announce.style.opacity = 0, 4000);
 
-        // 1. 殺死所有小怪
+        // 清除小怪
         for (let i = enemies.length - 1; i >= 0; i--) {
             if (!enemies[i].userData.isBoss) {
                 scene.remove(enemies[i]);
@@ -435,16 +454,15 @@
             }
         }
 
-        // 2. 摧毀建築
+        // 清除建築
         obstacles.forEach(obs => scene.remove(obs));
         obstacles = [];
 
-        // 3. 環境改變
+        // 環境改變
         scene.fog = new THREE.FogExp2(0x000000, 0.002);
         scene.background = new THREE.Color(0x000000);
         starField.visible = true;
         
-        // 地板變成透明能量網
         floor.material = new THREE.MeshBasicMaterial({ 
             color: 0x0044aa, 
             wireframe: true, 
@@ -452,16 +470,24 @@
             opacity: 0.3 
         });
 
-        // 4. 更換武器
+        // 創建虛空之月 (目標)
+        const moonGeo = new THREE.SphereGeometry(20, 32, 32);
+        const moonMat = new THREE.MeshBasicMaterial({ color: 0xeeeeff });
+        voidMoon = new THREE.Mesh(moonGeo, moonMat);
+        voidMoon.position.set(0, 100, -200); // 高空遠處
+        // 給月亮加個光暈
+        const glow = new THREE.PointLight(0xaaaaff, 2, 500);
+        voidMoon.add(glow);
+        scene.add(voidMoon);
+
+        // 更換武器
         inventory = [WEAPON_DEFS.moon];
         STATE.currentSlot = 0;
-        
-        // 更新 UI
         const slots = document.getElementById('weapon-slots');
         slots.innerHTML = `<div class="slot active" id="slot-0"><span>∞</span><div class="w-name" style="color:#0ff; text-shadow:0 0 5px #0ff">MOON<br>BLADE</div></div>`;
-        
         switchSlot(0);
-        alert("BOSS 吸收了所有靈魂！世界崩塌！\n你獲得了 [虛幻月牙之刃]");
+        
+        alert("BOSS 吸收了所有靈魂！世界崩塌！\n你獲得了 [虛幻月牙之刃]\n按左鍵發射「月牙天衝」！");
     }
 
     // --- 輸入控制 ---
@@ -493,7 +519,6 @@
     });
 
     function toggleShop() {
-        // 二階段禁止商店
         if (STATE.phase2) return; 
         if (STATE.isShopOpen) {
             STATE.isShopOpen = false;
@@ -568,14 +593,23 @@
         STATE.lastShotTime = now;
 
         const model = models[weapon.model];
+        
+        // 武器動畫
         if (model) {
-            if (weapon.type === 'melee') {
-                // 揮砍動畫
+            if (weapon.model === 'moon') {
+                // 月牙天衝揮砍
+                model.rotation.x = -Math.PI / 2;
+                model.rotation.y = -Math.PI / 2;
+                setTimeout(() => {
+                    model.rotation.x = 0;
+                    model.rotation.z = Math.PI/4;
+                    model.rotation.y = 0;
+                }, 200);
+            } else if (weapon.type === 'melee') {
                 model.rotation.x = -Math.PI / 2; 
                 model.rotation.y = -Math.PI / 2;
                 setTimeout(() => {
                     model.rotation.x = 0;
-                    if(weapon.model === 'moon') model.rotation.z = Math.PI/4; // Reset moon rotation
                     model.rotation.y = 0;
                 }, 150);
             } else {
@@ -590,38 +624,69 @@
             }
         }
 
-        const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-
-        if (weapon.type === 'explosive') {
-            const intersects = raycaster.intersectObjects([...enemies, floor, ...obstacles], true);
-            if (intersects.length > 0) createExplosion(intersects[0].point, weapon.damage);
+        // 發射邏輯
+        if (weapon.model === 'moon') {
+            // 發射月牙天衝
+            fireMoonBlade(weapon);
         } else {
-            if (weapon.type === 'melee') raycaster.far = weapon.range;
-            else raycaster.far = 1000;
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
 
-            const intersects = raycaster.intersectObjects(enemies, true);
-            if (intersects.length > 0) {
-                const hit = intersects[0];
-                let target = hit.object;
-                while(target.parent && !target.userData.hp) target = target.parent;
+            if (weapon.type === 'explosive') {
+                const intersects = raycaster.intersectObjects([...enemies, floor, ...obstacles], true);
+                if (intersects.length > 0) createExplosion(intersects[0].point, weapon.damage);
+            } else {
+                if (weapon.type === 'melee') raycaster.far = weapon.range;
+                else raycaster.far = 1000;
 
-                if (target.userData.hp) {
-                    // 擊退
-                    const pushDir = hit.point.clone().sub(playerBody.position).normalize();
-                    target.position.add(pushDir.multiplyScalar(weapon.type === 'melee' ? 2.0 : 0.2));
-                    damageEnemy(target, weapon.damage);
-                    
-                    // 月牙之刃特效
-                    if(weapon.model === 'moon') {
-                        const slashEffect = new THREE.PointLight(0x00ffff, 2, 5);
-                        slashEffect.position.copy(hit.point);
-                        scene.add(slashEffect);
-                        setTimeout(()=>scene.remove(slashEffect), 100);
+                const intersects = raycaster.intersectObjects(enemies, true);
+                if (intersects.length > 0) {
+                    const hit = intersects[0];
+                    let target = hit.object;
+                    while(target.parent && !target.userData.hp) target = target.parent;
+                    if (target.userData.hp) {
+                        // 擊退 (BOSS 免疫 Y 軸擊退)
+                        const pushDir = hit.point.clone().sub(playerBody.position).normalize();
+                        if (!target.userData.isBoss) {
+                            target.position.add(pushDir.multiplyScalar(weapon.type === 'melee' ? 2.0 : 0.2));
+                        }
+                        damageEnemy(target, weapon.damage);
                     }
                 }
             }
         }
+    }
+
+    function fireMoonBlade(weapon) {
+        // 創建月牙波
+        const geometry = new THREE.CylinderGeometry(2, 2, 0.2, 16, 1, true);
+        geometry.openEnded = true;
+        const material = new THREE.MeshBasicMaterial({ 
+            color: 0x00ffff, 
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.8
+        });
+        const projectile = new THREE.Mesh(geometry, material);
+        
+        // 初始位置：玩家前方
+        const direction = new THREE.Vector3();
+        camera.getWorldDirection(direction);
+        projectile.position.copy(playerBody.position).add(new THREE.Vector3(0, 1.5, 0)).add(direction.clone().multiplyScalar(2));
+        
+        // 旋轉以面對飛行方向，並橫向平躺
+        projectile.lookAt(projectile.position.clone().add(direction));
+        projectile.rotateX(Math.PI / 2); // 讓圓柱側面變成波浪形狀
+
+        // 附加數據
+        projectile.userData = { 
+            velocity: direction.multiplyScalar(40), // 速度快
+            life: 3.0,
+            damage: weapon.damage
+        };
+
+        scene.add(projectile);
+        playerProjectiles.push(projectile);
     }
 
     function createExplosion(point, damage) {
@@ -634,15 +699,31 @@
         enemies.forEach(enemy => {
             if (enemy.position.distanceTo(point) < 10) {
                 damageEnemy(enemy, damage);
-                const dir = enemy.position.clone().sub(point).normalize();
-                enemy.position.add(dir.multiplyScalar(2));
+                
+                // 修復：BOSS 霸體，不會被炸飛
+                if (!enemy.userData.isBoss) {
+                    const dir = enemy.position.clone().sub(point).normalize();
+                    enemy.position.add(dir.multiplyScalar(2));
+                }
             }
         });
     }
 
     function damageEnemy(enemy, dmg) {
-        enemy.userData.hp -= dmg;
         if (enemy.userData.isBoss) {
+            // 無敵判定
+            if (STATE.bossInvincible) {
+                // 顯示無敵特效
+                enemy.traverse(c => {
+                    if(c.isMesh) {
+                        c.material.emissive.setHex(0xaa00aa);
+                        setTimeout(() => c.material.emissive.setHex(0x330000), 100);
+                    }
+                });
+                return; // 不扣血
+            }
+
+            enemy.userData.hp -= dmg;
             const pct = Math.max(0, (enemy.userData.hp / enemy.userData.maxHp) * 100);
             document.getElementById('boss-hp-bar').style.width = pct + '%';
             
@@ -650,11 +731,50 @@
             if (!STATE.phase2 && pct <= 50) {
                 enterPhaseTwo();
             }
+
+            // BOSS 死亡/復活邏輯
+            if (enemy.userData.hp <= 0) {
+                if (STATE.bossLives > 0) {
+                    // 復活
+                    STATE.bossLives--;
+                    document.getElementById('boss-lives').innerText = `LIVES: ${STATE.bossLives}`;
+                    enemy.userData.hp = enemy.userData.maxHp;
+                    document.getElementById('boss-hp-bar').style.width = '100%';
+                    
+                    // 復活特效
+                    const announce = document.getElementById('wave-announce');
+                    announce.innerText = "BOSS RESURRECTED!";
+                    announce.style.opacity = 1;
+                    announce.style.color = "#ff0000";
+                    setTimeout(() => announce.style.opacity = 0, 1500);
+
+                    // 變強
+                    enemy.scale.multiplyScalar(1.1); 
+                    enemy.userData.speed += 2;
+
+                    // 最後一條命觸發無敵機制
+                    if (STATE.bossLives === 0) {
+                        STATE.bossInvincible = true;
+                        enemy.userData.hp = 1; // 鎖血
+                        document.getElementById('boss-hp-bar').style.background = "#aa00aa"; // 紫色血條
+                        document.getElementById('mission-hint').style.display = 'block';
+                    }
+                } else {
+                    // 真正的死亡 (需要解鎖真力量)
+                    killEnemy(enemy);
+                }
+            }
+
+        } else {
+            // 普通怪
+            enemy.userData.hp -= dmg;
+            if (enemy.userData.hp <= 0) {
+                killEnemy(enemy);
+            }
         }
 
-        if (enemy.userData.hp <= 0) {
-            killEnemy(enemy);
-        } else {
+        // 受傷閃爍
+        if (enemy.userData.hp > 0 && !STATE.bossInvincible) {
             enemy.traverse((child) => {
                 if(child.isMesh && child.material && child.material.emissive) child.material.emissive.setHex(0xffffff);
             });
@@ -662,7 +782,6 @@
                 enemy.traverse((child) => {
                     if(child.isMesh && child.material && child.material.emissive) {
                         child.material.emissive.setHex(enemy.userData.isBoss ? 0x330000 : 0x000000);
-                        if(child.material.color.getHex() === 0x00ffff) child.material.emissive.setHex(0x00ffff); // Moon blade
                     }
                 });
             }, 50);
@@ -680,12 +799,12 @@
         if (enemy.userData.isBoss) {
             STATE.bossActive = false;
             document.getElementById('boss-bar-container').style.display = 'none';
+            document.getElementById('mission-hint').style.display = 'none';
             document.getElementById('wave-announce').innerText = "LEGENDARY VICTORY";
             document.getElementById('wave-announce').style.opacity = 1;
             document.getElementById('wave-announce').style.color = "#ffd700";
             setTimeout(() => alert("你斬殺了惡魔，拯救了宇宙！"), 1000);
         } else {
-            // 波數邏輯
             if (STATE.enemiesRemaining <= 0 && !STATE.bossActive && STATE.wave < 3) {
                 setTimeout(() => startWave(STATE.wave + 1), 2000);
             }
@@ -734,6 +853,9 @@
 
     // --- BOSS 技能 ---
     function updateBoss(boss, delta) {
+        // 強制修正 BOSS 高度 (修復 RPG 擊飛 BUG)
+        if (boss.position.y < 2.0) boss.position.y = 2.0;
+
         // 翅膀扇動
         const wingL = boss.getObjectByName("wingL");
         const wingR = boss.getObjectByName("wingR");
@@ -746,18 +868,22 @@
         // 投射物技能
         boss.userData.attackCooldown -= delta;
         if (boss.userData.attackCooldown <= 0) {
-            boss.userData.attackCooldown = 2.0; // 2秒發射一次
+            // 復活次數越少，攻擊越快
+            const baseCD = 2.0;
+            const reduction = (3 - STATE.bossLives) * 0.4;
+            boss.userData.attackCooldown = Math.max(0.5, baseCD - reduction);
             
             const projectile = new THREE.Mesh(
                 new THREE.SphereGeometry(0.5, 8, 8),
                 new THREE.MeshBasicMaterial({ color: 0xff0000 })
             );
             projectile.position.copy(boss.position);
-            projectile.position.y += 3; // 從頭頂發射
+            projectile.position.y += 3; 
             
-            // 計算方向
             const dir = new THREE.Vector3().subVectors(playerBody.position, projectile.position).normalize();
-            projectile.userData = { velocity: dir.multiplyScalar(20), life: 5.0 }; // 速度 20
+            // 速度隨階段提升
+            const speed = 20 + (3 - STATE.bossLives) * 5;
+            projectile.userData = { velocity: dir.multiplyScalar(speed), life: 5.0 };
             
             scene.add(projectile);
             bossProjectiles.push(projectile);
@@ -791,9 +917,8 @@
     }
 
     function updateGameLogic(delta) {
-        // 無限刷怪邏輯 (BOSS戰一階段)
         if (STATE.wave === 3 && !STATE.phase2 && enemies.length < 60) {
-            if (Math.random() < 0.05) spawnEnemy(); // 快速補充
+            if (Math.random() < 0.05) spawnEnemy();
         }
 
         // 敵人行為
@@ -815,18 +940,67 @@
             p.position.add(p.userData.velocity.clone().multiplyScalar(delta));
             p.userData.life -= delta;
 
-            // 碰撞檢測 (玩家)
             if (p.position.distanceTo(playerBody.position) < 1.5) {
                 takeDamage(20);
                 scene.remove(p);
                 bossProjectiles.splice(i, 1);
                 continue;
             }
-
-            // 移除過期
             if (p.userData.life <= 0) {
                 scene.remove(p);
                 bossProjectiles.splice(i, 1);
+            }
+        }
+
+        // 玩家 月牙天衝 投射物
+        for (let i = playerProjectiles.length - 1; i >= 0; i--) {
+            const p = playerProjectiles[i];
+            p.position.add(p.userData.velocity.clone().multiplyScalar(delta));
+            p.userData.life -= delta;
+            
+            // 旋轉特效
+            p.rotateY(5 * delta);
+
+            // 碰撞檢測：BOSS
+            if (STATE.bossRef) {
+                const distToBoss = p.position.distanceTo(STATE.bossRef.position);
+                if (distToBoss < 5.0) {
+                    damageEnemy(STATE.bossRef, p.userData.damage);
+                    scene.remove(p);
+                    playerProjectiles.splice(i, 1);
+                    continue;
+                }
+            }
+
+            // 碰撞檢測：月亮 (解鎖機制)
+            if (STATE.bossInvincible && voidMoon) {
+                const distToMoon = p.position.distanceTo(voidMoon.position);
+                if (distToMoon < 25.0) { // 月亮半徑20
+                    // 解鎖成功
+                    STATE.bossInvincible = false;
+                    STATE.truePowerUnlocked = true;
+                    
+                    // 月亮爆炸特效
+                    scene.remove(voidMoon);
+                    voidMoon = null;
+                    const explosion = new THREE.PointLight(0xffffff, 10, 500);
+                    explosion.position.set(0, 100, -200);
+                    scene.add(explosion);
+                    
+                    document.getElementById('mission-hint').innerText = "真·月牙之力已覺醒！\n斬殺惡魔！";
+                    document.getElementById('mission-hint').style.color = "#ff0000";
+                    document.getElementById('boss-hp-bar').style.background = "#ff0000"; // 恢復紅色血條
+                    
+                    // 移除投射物
+                    scene.remove(p);
+                    playerProjectiles.splice(i, 1);
+                    continue;
+                }
+            }
+
+            if (p.userData.life <= 0) {
+                scene.remove(p);
+                playerProjectiles.splice(i, 1);
             }
         }
     }
