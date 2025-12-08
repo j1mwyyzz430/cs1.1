@@ -359,8 +359,8 @@
         if (!STATE.isPlaying) return;
 
         switch(e.code) {
-            case 'KeyW': input.w = true; break;
-            case 'KeyS': input.s = true; break;
+            case 'KeyS': input.w = true; break;
+            case 'KeyW': input.s = true; break;
             case 'KeyA': input.a = true; break;
             case 'KeyD': input.d = true; break;
             case 'Space': if(STATE.canJump) { velocity.y = CONFIG.jumpForce; STATE.canJump = false; } break;
@@ -372,8 +372,8 @@
 
     document.addEventListener('keyup', (e) => {
         switch(e.code) {
-            case 'KeyW': input.w = false; break;
-            case 'KeyS': input.s = false; break;
+            case 'KeyS': input.w = false; break;
+            case 'KeyW': input.s = false; break;
             case 'KeyA': input.a = false; break;
             case 'KeyD': input.d = false; break;
         }
@@ -617,3 +617,4 @@
 </script>
 </body>
 </html>
+
