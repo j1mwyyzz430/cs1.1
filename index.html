@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Night Survival FPS: Boss Wave (Fixed)</title>
+    <title>Night Survival: Heavy Firepower</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Arial', sans-serif; user-select: none; }
         
@@ -13,17 +13,18 @@
         /* 準心 */
         #crosshair {
             position: absolute; top: 50%; left: 50%; width: 24px; height: 24px;
-            transform: translate(-50%, -50%);
+            transform: translate(-50%, -50%); transition: 0.1s;
         }
         #crosshair::before, #crosshair::after { content: ''; position: absolute; background: rgba(0, 255, 0, 0.8); box-shadow: 0 0 4px #0f0; }
         #crosshair::before { top: 11px; left: 0; width: 24px; height: 2px; }
         #crosshair::after { top: 0; left: 11px; width: 2px; height: 24px; }
+        .recoil #crosshair { transform: translate(-50%, -50%) scale(1.5); opacity: 0.5; }
 
         /* 頂部 BOSS 血條 */
         #boss-bar-container {
             position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
             width: 60%; height: 30px; background: rgba(0,0,0,0.8); border: 2px solid #500;
-            display: none; /* 只有 BOSS 出現時顯示 */
+            display: none;
         }
         #boss-hp-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #ff0000, #880000); transition: width 0.2s; }
         #boss-label { position: absolute; top: -25px; left: 0; color: #f00; font-weight: bold; text-shadow: 1px 1px 0 #000; letter-spacing: 2px; }
@@ -37,17 +38,17 @@
 
         /* 武器欄 */
         #weapon-slots { position: absolute; bottom: 30px; right: 30px; display: flex; gap: 10px; }
-        .slot { width: 60px; height: 60px; background: rgba(0,0,0,0.6); border: 2px solid #333; color: #555; display: flex; flex-direction: column; justify-content: center; align-items: center; font-weight: bold; transition: 0.2s; position: relative; }
-        .slot.active { border-color: #0f0; color: #fff; background: rgba(0, 255, 0, 0.1); transform: scale(1.1); }
-        .slot.locked { opacity: 0.3; }
+        .slot { width: 70px; height: 70px; background: rgba(0,0,0,0.6); border: 2px solid #333; color: #555; display: flex; flex-direction: column; justify-content: center; align-items: center; font-weight: bold; transition: 0.2s; position: relative; }
+        .slot.active { border-color: #0f0; color: #fff; background: rgba(0, 255, 0, 0.1); transform: scale(1.1); box-shadow: 0 0 15px rgba(0,255,0,0.3); }
         .slot span { font-size: 10px; position: absolute; top: 2px; left: 4px; }
-        .w-name { font-size: 12px; }
+        .w-name { font-size: 12px; text-align: center; }
+        .w-type { font-size: 9px; color: #aaa; margin-top: 2px; }
 
         /* 波數提示 */
         #wave-announce {
             position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%);
             font-size: 80px; color: #ff0000; font-weight: 900; text-shadow: 0 0 20px #f00;
-            opacity: 0; transition: opacity 1s; pointer-events: none;
+            opacity: 0; transition: opacity 1s; pointer-events: none; text-align: center;
         }
 
         /* 商店介面 */
@@ -70,6 +71,9 @@
         h1 { color: #f00; font-size: 60px; margin: 0 0 10px 0; text-transform: uppercase; letter-spacing: 5px; text-shadow: 0 0 10px #f00; }
         .controls { text-align: left; background: rgba(255,255,255,0.1); padding: 20px; border-radius: 8px; margin-bottom: 20px; }
         .key { display: inline-block; background: #333; padding: 2px 6px; border-radius: 4px; border: 1px solid #666; color: #ffcc00; font-weight: bold; margin: 0 2px; }
+        
+        /* 擊殺提示 */
+        .kill-feed { position: absolute; top: 40%; right: 20%; color: #ffcc00; font-weight: bold; font-size: 24px; opacity: 0; transition: opacity 0.5s; transform: translateY(0); pointer-events: none; text-shadow: 0 0 5px #000; }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
@@ -77,8 +81,8 @@
 
     <div id="ui-layer">
         <div id="crosshair"></div>
+        <div id="kill-msg" class="kill-feed">+$100</div>
         
-        <!-- BOSS 血條 -->
         <div id="boss-bar-container">
             <div id="boss-label">⚠️ FINAL BOSS ⚠️</div>
             <div id="boss-hp-bar"></div>
@@ -94,29 +98,29 @@
         </div>
 
         <div id="weapon-slots">
-            <div class="slot active" id="slot-0"><span>1</span><div class="w-name">RIFLE</div></div>
-            <div class="slot locked" id="slot-1"><span>2</span><div class="w-name">M249</div></div>
-            <div class="slot locked" id="slot-2"><span>3</span><div class="w-name">RPG</div></div>
+            <div class="slot active" id="slot-0"><span>1</span><div class="w-name" id="name-0">AK-47</div><div class="w-type">MAIN</div></div>
+            <div class="slot" id="slot-1"><span>2</span><div class="w-name">PISTOL</div><div class="w-type">SIDE</div></div>
+            <div class="slot" id="slot-2"><span>3</span><div class="w-name">AXE</div><div class="w-type">MELEE</div></div>
         </div>
     </div>
 
     <!-- 商店 -->
     <div id="shop-menu">
-        <h2>Black Market Weaponry</h2>
+        <h2>Black Market (Replace Main Weapon)</h2>
         <div class="shop-grid">
             <div class="shop-item">
                 <div>
                     <div style="color:#0f0; font-weight:bold;">M249 機槍</div>
-                    <div style="font-size:12px; color:#aaa;">極高射速，壓制屍潮</div>
+                    <div style="font-size:12px; color:#aaa;">射速極快，彈藥傾瀉</div>
                 </div>
-                <button onclick="buyItem('m249', 800)" id="btn-m249">$800</button>
+                <button onclick="buyWeapon('m249', 1000)">$1000</button>
             </div>
             <div class="shop-item">
                 <div>
                     <div style="color:#f00; font-weight:bold;">RPG 火箭筒</div>
-                    <div style="font-size:12px; color:#aaa;">單發毀滅性傷害</div>
+                    <div style="font-size:12px; color:#aaa;">範圍爆炸，威力巨大</div>
                 </div>
-                <button onclick="buyItem('rpg', 1500)" id="btn-rpg">$1500</button>
+                <button onclick="buyWeapon('rpg', 2000)">$2000</button>
             </div>
             <div class="shop-item">
                 <div>
@@ -133,24 +137,26 @@
                 <button onclick="buyItem('health', 150)">$150</button>
             </div>
         </div>
-        <button class="close-shop" onclick="toggleShop()">關閉商店 (ESC)</button>
+        <button class="close-shop" onclick="toggleShop()">關閉商店 (B / ESC)</button>
     </div>
 
     <div id="menu">
         <h1>NIGHT SURVIVAL</h1>
         <div class="controls">
-            <p><span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span> 移動 (已修復方向)</p>
-            <p><span class="key">B</span> 開啟/關閉 商店</p>
-            <p><span class="key">滑鼠左鍵</span> 射擊</p>
-            <p><span class="key">1</span><span class="key">2</span><span class="key">3</span> 切換武器</p>
+            <p><span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span> 移動</p>
+            <p><span class="key">按住左鍵</span> 連射 / 揮砍</p>
+            <p><span class="key">1</span> 主武器 (可替換)</p>
+            <p><span class="key">2</span> 手槍 (副武器)</p>
+            <p><span class="key">3</span> 旋風斧 (一擊必殺)</p>
+            <p><span class="key">B</span> 商店</p>
         </div>
-        <p style="margin-top: 30px; font-size: 20px; color: #aaa;">點擊畫面開始遊戲</p>
+        <p style="margin-top: 30px; font-size: 20px; color: #aaa;">點擊畫面開始殺戮</p>
     </div>
 
 <script>
     // --- 遊戲參數 ---
     const CONFIG = {
-        walkSpeed: 10.0,
+        walkSpeed: 12.0, // 稍微加快移動速度
         jumpForce: 15.0,
         gravity: 30.0,
         mouseSensitivity: 0.002,
@@ -166,25 +172,34 @@
         isPlaying: false,
         isShopOpen: false,
         canJump: false,
-        currentWeaponIdx: 0,
+        currentSlot: 0, // 0=Main, 1=Pistol, 2=Axe
         lastShotTime: 0,
         enemiesRemaining: 0,
-        bossActive: false
+        bossActive: false,
+        isFiring: false // 是否正在按住左鍵
     };
 
-    // 武器數據
-    const WEAPONS = [
-        { name: "Rifle", damage: 15, fireRate: 150, unlocked: true, color: 0xcccccc },
-        { name: "M249", damage: 12, fireRate: 60, unlocked: false, color: 0x00ff00 },
-        { name: "RPG", damage: 300, fireRate: 1200, unlocked: false, color: 0xff0000 }
+    // 武器庫定義
+    // type: 'hitscan' (槍) 或 'melee' (斧頭) 或 'projectile' (RPG模擬)
+    const WEAPON_DEFS = {
+        ak:   { name: "AK-47",  damage: 35,   rate: 180,  range: 100, type: 'hitscan', color: 0xffaa00, model: 'rifle' },
+        m249: { name: "M249",   damage: 25,   rate: 60,   range: 100, type: 'hitscan', color: 0x00ff00, model: 'm249' },
+        rpg:  { name: "RPG",    damage: 800,  rate: 1200, range: 200, type: 'explosive', color: 0xff0000, model: 'rpg' },
+        pistol:{ name: "Pistol",damage: 20,   rate: 300,  range: 60,  type: 'hitscan', color: 0xcccccc, model: 'pistol' },
+        axe:  { name: "Axe",    damage: 9999, rate: 600,  range: 4,   type: 'melee',   color: 0xffffff, model: 'axe' }
+    };
+
+    // 玩家當前裝備 [Slot 0, Slot 1, Slot 2]
+    let inventory = [
+        WEAPON_DEFS.ak,     // Slot 0 (Main)
+        WEAPON_DEFS.pistol, // Slot 1
+        WEAPON_DEFS.axe     // Slot 2
     ];
 
     // --- Three.js 初始化 ---
     const scene = new THREE.Scene();
-    
-    // [修正] 調整背景顏色與迷霧，讓畫面不要太黑
-    scene.background = new THREE.Color(0x101018); // 深藍黑色，不是純黑
-    scene.fog = new THREE.FogExp2(0x101018, 0.015); // 降低迷霧濃度 (0.03 -> 0.015)
+    scene.background = new THREE.Color(0x101018); 
+    scene.fog = new THREE.FogExp2(0x101018, 0.015);
 
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -192,70 +207,93 @@
     renderer.shadowMap.enabled = true;
     document.body.appendChild(renderer.domElement);
 
-    // --- 燈光系統 ---
-    // [修正] 提高環境光亮度
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4); // 0.1 -> 0.4
+    // --- 燈光 ---
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
     scene.add(ambientLight);
-
-    // [修正] 提高月光亮度
-    const moonLight = new THREE.DirectionalLight(0x6666ff, 0.8); // 0.3 -> 0.8
+    const moonLight = new THREE.DirectionalLight(0x6666ff, 0.8);
     moonLight.position.set(50, 100, 50);
     moonLight.castShadow = true;
     scene.add(moonLight);
 
-    // 玩家手電筒 (SpotLight)
+    // 手電筒
     const flashLight = new THREE.SpotLight(0xffffee, 1.2, 60, Math.PI/6, 0.5, 1);
-    flashLight.position.set(0, 0, 0);
-    flashLight.target.position.set(0, 0, -1);
     camera.add(flashLight);
     camera.add(flashLight.target);
+    flashLight.target.position.set(0, 0, -1);
 
-    // --- 玩家與移動 ---
+    // --- 玩家與武器模型 ---
     const playerBody = new THREE.Group();
     scene.add(playerBody);
     playerBody.add(camera);
     camera.position.set(0, 1.7, 0);
 
-    // 武器模型容器
     const weaponContainer = new THREE.Group();
     camera.add(weaponContainer);
-    weaponContainer.position.set(0.3, -0.4, -0.6);
+    weaponContainer.position.set(0.4, -0.5, -0.6);
 
-    // 簡單武器模型
-    const weaponMeshes = [];
-    // Rifle
-    const m1 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 1), new THREE.MeshStandardMaterial({color:0x888}));
-    weaponMeshes.push(m1); weaponContainer.add(m1);
-    // M249 (更粗)
-    const m2 = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 1.2), new THREE.MeshStandardMaterial({color:0x0f0}));
-    m2.visible = false; weaponMeshes.push(m2); weaponContainer.add(m2);
-    // RPG (很大)
-    const m3 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.5, 8), new THREE.MeshStandardMaterial({color:0xa00}));
-    m3.rotation.x = Math.PI/2; m3.visible = false; weaponMeshes.push(m3); weaponContainer.add(m3);
+    // 建立所有武器模型並隱藏
+    const models = {};
+
+    // AK / Rifle
+    const gRifle = new THREE.Group();
+    gRifle.add(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 1), new THREE.MeshStandardMaterial({color:0x8B4513}))); // 木托
+    const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 1.2), new THREE.MeshStandardMaterial({color:0x111111}));
+    barrel.position.z = -0.2; gRifle.add(barrel);
+    models['rifle'] = gRifle; weaponContainer.add(gRifle);
+
+    // M249 (Big Box)
+    const gM249 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 1.0), new THREE.MeshStandardMaterial({color:0x333333}));
+    const boxMag = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.25, 0.2), new THREE.MeshStandardMaterial({color:0x004400}));
+    boxMag.position.set(0, -0.2, 0); gM249.add(boxMag);
+    models['m249'] = gM249; weaponContainer.add(gM249);
+
+    // RPG
+    const gRPG = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.5, 8), new THREE.MeshStandardMaterial({color:0x556B2F}));
+    gRPG.rotation.x = Math.PI/2;
+    const warhead = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.3, 8), new THREE.MeshStandardMaterial({color:0x8B0000}));
+    warhead.rotation.x = -Math.PI/2; warhead.position.z = -0.8; gRPG.add(warhead); // 修正彈頭方向
+    models['rpg'] = gRPG; weaponContainer.add(gRPG);
+
+    // Pistol
+    const gPistol = new THREE.Group();
+    gPistol.add(new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.1, 0.4), new THREE.MeshStandardMaterial({color:0x888})));
+    const handle = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.2, 0.1), new THREE.MeshStandardMaterial({color:0x222}));
+    handle.position.set(0, -0.1, 0.1); handle.rotation.x = -0.2; gPistol.add(handle);
+    models['pistol'] = gPistol; weaponContainer.add(gPistol);
+
+    // Axe
+    const gAxe = new THREE.Group();
+    const axeHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.2), new THREE.MeshStandardMaterial({color:0x8B4513}));
+    axeHandle.rotation.x = Math.PI/2; axeHandle.position.z = 0.2;
+    const axeBlade = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.05, 0.3), new THREE.MeshStandardMaterial({color:0xCCCCCC, metalness: 0.8}));
+    axeBlade.position.z = -0.4; axeBlade.rotation.y = Math.PI/4;
+    gAxe.add(axeHandle); gAxe.add(axeBlade);
+    // 斧頭預設位置稍微不同
+    gAxe.position.set(-0.2, 0, 0); 
+    models['axe'] = gAxe; weaponContainer.add(gAxe);
 
     // --- 地圖 ---
-    const matFloor = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.8 }); // 地板稍微亮一點
+    const matFloor = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.8 });
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), matFloor);
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
     scene.add(floor);
 
-    // 隨機障礙物
+    // 障礙物
     const obstacles = [];
-    const matBox = new THREE.MeshStandardMaterial({ color: 0x444444 }); // 障礙物稍微亮一點
-    for(let i=0; i<30; i++) {
-        const h = Math.random() * 3 + 1;
+    const matBox = new THREE.MeshStandardMaterial({ color: 0x444444 });
+    for(let i=0; i<40; i++) {
+        const h = Math.random() * 4 + 1;
         const mesh = new THREE.Mesh(new THREE.BoxGeometry(2, h, 2), matBox);
-        mesh.position.set((Math.random()-0.5)*100, h/2, (Math.random()-0.5)*100);
-        // 留出中間出生點
-        if (mesh.position.length() < 10) continue;
+        mesh.position.set((Math.random()-0.5)*120, h/2, (Math.random()-0.5)*120);
+        if (mesh.position.length() < 15) continue;
         mesh.castShadow = true;
         mesh.receiveShadow = true;
         scene.add(mesh);
         obstacles.push(mesh);
     }
 
-    // --- 敵人系統 ---
+    // --- 敵人 ---
     const enemies = [];
     const enemyGeo = new THREE.BoxGeometry(0.8, 1.8, 0.8);
     const bossGeo = new THREE.BoxGeometry(3, 6, 3);
@@ -267,21 +305,18 @@
         const geo = isBoss ? bossGeo : enemyGeo;
         const enemy = new THREE.Mesh(geo, mat);
         
-        // 隨機位置 (遠離玩家)
         const angle = Math.random() * Math.PI * 2;
-        const dist = 30 + Math.random() * 20;
+        const dist = 30 + Math.random() * 30;
         enemy.position.set(Math.sin(angle)*dist, isBoss? 3 : 0.9, Math.cos(angle)*dist);
         
-        // 屬性
         enemy.userData = {
-            hp: isBoss ? 2000 : 50, 
-            maxHp: isBoss ? 2000 : 50,
-            speed: isBoss ? 3.5 : (2.0 + Math.random() * 2),
-            damage: isBoss ? 30 : 10,
+            hp: isBoss ? 3000 : 100, 
+            maxHp: isBoss ? 3000 : 100,
+            speed: isBoss ? 4.0 : (2.5 + Math.random() * 3),
+            damage: isBoss ? 40 : 15,
             isBoss: isBoss,
-            score: isBoss ? 1000 : 50
+            score: isBoss ? 2000 : 100 // 殺敵 $100
         };
-
         scene.add(enemy);
         enemies.push(enemy);
         STATE.enemiesRemaining++;
@@ -290,38 +325,38 @@
     function startWave(waveNum) {
         STATE.wave = waveNum;
         document.getElementById('wave-val').innerText = waveNum;
-        
-        // 顯示波數文字
         const announce = document.getElementById('wave-announce');
-        announce.innerText = waveNum === 3 ? "BOSS WAVE" : `WAVE ${waveNum}`;
+        announce.innerText = waveNum === 3 ? "FINAL BOSS" : `WAVE ${waveNum}`;
         announce.style.opacity = 1;
         setTimeout(() => announce.style.opacity = 0, 3000);
 
-        if (waveNum === 1) {
-            for(let i=0; i<5; i++) spawnEnemy();
-        } else if (waveNum === 2) {
-            for(let i=0; i<12; i++) spawnEnemy();
-        } else if (waveNum === 3) {
-            spawnEnemy(true); // Boss
-            for(let i=0; i<5; i++) spawnEnemy(); // 小怪伴隨
+        let count = waveNum === 1 ? 8 : (waveNum === 2 ? 20 : 10);
+        if (waveNum === 3) {
+            spawnEnemy(true);
             STATE.bossActive = true;
             document.getElementById('boss-bar-container').style.display = 'block';
         }
+        for(let i=0; i<count; i++) spawnEnemy();
     }
 
-    // --- 控制與輸入 ---
+    // --- 輸入控制 ---
     const input = { w: false, a: false, s: false, d: false };
     const velocity = new THREE.Vector3();
     const menu = document.getElementById('menu');
     const shopMenu = document.getElementById('shop-menu');
 
-    // 鎖定/解鎖邏輯
-    document.addEventListener('click', () => {
-        if (!STATE.isPlaying && !STATE.isShopOpen) {
+    document.addEventListener('mousedown', (e) => {
+        if (STATE.isPlaying && !STATE.isShopOpen && e.button === 0) {
+            STATE.isFiring = true;
+        } else if (!STATE.isPlaying && !STATE.isShopOpen) {
             document.body.requestPointerLock();
-        } else if (STATE.isPlaying && !STATE.isShopOpen) {
-            shoot();
         }
+    });
+
+    document.addEventListener('mouseup', () => {
+        STATE.isFiring = false;
+        // 恢復準心
+        document.body.classList.remove('recoil');
     });
 
     document.addEventListener('pointerlockchange', () => {
@@ -333,12 +368,12 @@
         } else {
             if (!STATE.isShopOpen) {
                 STATE.isPlaying = false;
+                STATE.isFiring = false;
                 menu.style.display = 'flex';
             }
         }
     });
 
-    // 商店開關
     function toggleShop() {
         if (STATE.isShopOpen) {
             STATE.isShopOpen = false;
@@ -347,6 +382,7 @@
         } else {
             STATE.isShopOpen = true;
             STATE.isPlaying = false;
+            STATE.isFiring = false;
             document.exitPointerLock();
             shopMenu.style.display = 'flex';
             updateShopUI();
@@ -363,9 +399,9 @@
             case 'KeyA': input.a = true; break;
             case 'KeyD': input.d = true; break;
             case 'Space': if(STATE.canJump) { velocity.y = CONFIG.jumpForce; STATE.canJump = false; } break;
-            case 'Digit1': switchWeapon(0); break;
-            case 'Digit2': switchWeapon(1); break;
-            case 'Digit3': switchWeapon(2); break;
+            case 'Digit1': switchSlot(0); break;
+            case 'Digit2': switchSlot(1); break;
+            case 'Digit3': switchSlot(2); break;
         }
     });
 
@@ -385,71 +421,175 @@
         camera.rotation.x = Math.max(-1.5, Math.min(1.5, camera.rotation.x));
     });
 
-    // --- 遊戲邏輯 ---
+    // --- 武器系統邏輯 ---
 
-    function switchWeapon(idx) {
-        if (!WEAPONS[idx].unlocked) return;
-        STATE.currentWeaponIdx = idx;
-        weaponMeshes.forEach((m, i) => m.visible = (i === idx));
-        document.querySelectorAll('.slot').forEach((el, i) => el.classList.toggle('active', i === idx));
-    }
-
-    function shoot() {
-        const now = Date.now();
-        const weapon = WEAPONS[STATE.currentWeaponIdx];
-        if (now - STATE.lastShotTime < weapon.fireRate) return;
-        STATE.lastShotTime = now;
-
-        const flash = new THREE.PointLight(weapon.color, 1, 5);
-        flash.position.set(0.5, -0.2, -1);
-        camera.add(flash);
-        setTimeout(() => camera.remove(flash), 50);
-
-        weaponMeshes[STATE.currentWeaponIdx].position.z += 0.2;
-
-        const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+    function switchSlot(idx) {
+        STATE.currentSlot = idx;
+        STATE.isFiring = false; // 切槍時停止射擊
         
-        const intersects = raycaster.intersectObjects(enemies);
-        if (intersects.length > 0) {
-            const hit = intersects[0];
-            const enemy = hit.object;
-            
-            enemy.userData.hp -= weapon.damage;
-
-            const pushDir = hit.point.clone().sub(playerBody.position).normalize();
-            enemy.position.add(pushDir.multiplyScalar(0.5));
-
-            if (enemy.userData.hp <= 0) {
-                killEnemy(enemy);
-            } else if (enemy.userData.isBoss) {
-                const pct = (enemy.userData.hp / enemy.userData.maxHp) * 100;
-                document.getElementById('boss-hp-bar').style.width = pct + '%';
+        // 更新 UI
+        document.querySelectorAll('.slot').forEach((el, i) => el.classList.toggle('active', i === idx));
+        
+        // 更新模型可見性
+        const currentWep = inventory[idx];
+        for (const key in models) {
+            models[key].visible = false;
+        }
+        if (models[currentWep.model]) {
+            models[currentWep.model].visible = true;
+            // 重置位置動畫
+            models[currentWep.model].position.z = (currentWep.model === 'rpg') ? 0 : 0; 
+            models[currentWep.model].rotation.x = (currentWep.model === 'rpg') ? Math.PI/2 : 0;
+            if(currentWep.model === 'axe') {
+                models['axe'].rotation.x = 0; // 斧頭特殊處理
+                models['axe'].position.set(-0.2, 0, 0);
             }
         }
     }
 
+    function processShooting() {
+        if (!STATE.isFiring) return;
+
+        const now = Date.now();
+        const weapon = inventory[STATE.currentSlot];
+        
+        if (now - STATE.lastShotTime < weapon.rate) return;
+        STATE.lastShotTime = now;
+
+        // 視覺後座力
+        const model = models[weapon.model];
+        if (model) {
+            if (weapon.type === 'melee') {
+                // 揮砍動畫
+                model.rotation.x = -Math.PI / 2; 
+                setTimeout(() => model.rotation.x = 0, 150);
+            } else {
+                // 槍械後座力
+                model.position.z += 0.15;
+                setTimeout(() => model.position.z -= 0.15, 80);
+                
+                // 槍口閃光
+                const flash = new THREE.PointLight(weapon.color, 1, 5);
+                flash.position.set(0.5, -0.2, -1);
+                camera.add(flash);
+                setTimeout(() => camera.remove(flash), 50);
+                
+                // 準心擴散
+                document.body.classList.add('recoil');
+                setTimeout(() => document.body.classList.remove('recoil'), 80);
+            }
+        }
+
+        // 傷害邏輯
+        if (weapon.type === 'explosive') {
+            // RPG 邏輯：射出一條射線，撞到東西就爆炸
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+            const intersects = raycaster.intersectObjects([...enemies, floor, ...obstacles]);
+            
+            if (intersects.length > 0) {
+                const hitPoint = intersects[0].point;
+                createExplosion(hitPoint, weapon.damage);
+            }
+        } else {
+            // 一般射擊或近戰
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+            
+            // 近戰距離限制
+            if (weapon.type === 'melee') raycaster.far = weapon.range;
+            else raycaster.far = 1000;
+
+            const intersects = raycaster.intersectObjects(enemies);
+            if (intersects.length > 0) {
+                const hit = intersects[0];
+                const enemy = hit.object;
+                
+                // 擊退
+                const pushDir = hit.point.clone().sub(playerBody.position).normalize();
+                enemy.position.add(pushDir.multiplyScalar(weapon.type === 'melee' ? 2.0 : 0.2));
+
+                damageEnemy(enemy, weapon.damage);
+            }
+        }
+    }
+
+    function createExplosion(point, damage) {
+        // 視覺效果
+        const light = new THREE.PointLight(0xffaa00, 5, 20);
+        light.position.copy(point);
+        light.position.y += 1;
+        scene.add(light);
+        setTimeout(() => scene.remove(light), 200);
+
+        // 範圍傷害
+        enemies.forEach(enemy => {
+            const dist = enemy.position.distanceTo(point);
+            if (dist < 10) { // 爆炸半徑
+                damageEnemy(enemy, damage);
+                // 爆炸擊飛
+                const dir = enemy.position.clone().sub(point).normalize();
+                enemy.position.add(dir.multiplyScalar(2));
+            }
+        });
+    }
+
+    function damageEnemy(enemy, dmg) {
+        enemy.userData.hp -= dmg;
+        
+        // BOSS 血條更新
+        if (enemy.userData.isBoss) {
+            const pct = Math.max(0, (enemy.userData.hp / enemy.userData.maxHp) * 100);
+            document.getElementById('boss-hp-bar').style.width = pct + '%';
+        }
+
+        if (enemy.userData.hp <= 0) {
+            killEnemy(enemy);
+        } else {
+            // 受傷閃爍
+            enemy.material.emissive.setHex(0xffffff);
+            setTimeout(() => {
+                if(enemy.userData.isBoss) enemy.material.emissive.setHex(0x550000);
+                else enemy.material.emissive.setHex(0x003300);
+            }, 50);
+        }
+    }
+
     function killEnemy(enemy) {
+        if (!enemies.includes(enemy)) return; // 防止重複擊殺
+        
         scene.remove(enemy);
         enemies.splice(enemies.indexOf(enemy), 1);
         STATE.enemiesRemaining--;
         
         addMoney(enemy.userData.score);
+        showKillFeed(enemy.userData.score);
 
         if (enemy.userData.isBoss) {
             STATE.bossActive = false;
             document.getElementById('boss-bar-container').style.display = 'none';
-            alert("VICTORY! BOSS DEFEATED!");
+            alert("BOSS ELIMINATED! YOU ARE THE SURVIVOR!");
         }
 
         if (STATE.enemiesRemaining <= 0 && !STATE.bossActive) {
             if (STATE.wave < 3) {
                 setTimeout(() => startWave(STATE.wave + 1), 2000);
             } else {
-                document.getElementById('wave-announce').innerText = "YOU SURVIVED";
+                document.getElementById('wave-announce').innerText = "VICTORY";
                 document.getElementById('wave-announce').style.opacity = 1;
             }
         }
+    }
+
+    function showKillFeed(amount) {
+        const feed = document.getElementById('kill-msg');
+        feed.innerText = `+$${amount}`;
+        feed.style.opacity = 1;
+        feed.style.transform = "translateY(-20px)";
+        setTimeout(() => {
+            feed.style.opacity = 0;
+            feed.style.transform = "translateY(0)";
+        }, 500);
     }
 
     function addMoney(amount) {
@@ -458,38 +598,57 @@
         updateShopUI();
     }
 
-    // --- 商店邏輯 ---
+    // --- 商店 ---
     function updateShopUI() {
-        document.getElementById('btn-m249').disabled = STATE.money < 800 || WEAPONS[1].unlocked;
-        document.getElementById('btn-rpg').disabled = STATE.money < 1500 || WEAPONS[2].unlocked;
+        // 檢查是否已經擁有該武器 (檢查 Slot 0 的名稱)
+        const currentMain = inventory[0].name;
         
-        if (WEAPONS[1].unlocked) document.getElementById('btn-m249').innerText = "已擁有";
-        if (WEAPONS[2].unlocked) document.getElementById('btn-rpg').innerText = "已擁有";
+        const btnM249 = document.querySelector('button[onclick*="m249"]');
+        const btnRPG = document.querySelector('button[onclick*="rpg"]');
+
+        btnM249.disabled = STATE.money < 1000 || currentMain === 'M249';
+        btnRPG.disabled = STATE.money < 2000 || currentMain === 'RPG';
+
+        if (currentMain === 'M249') btnM249.innerText = "已裝備";
+        else btnM249.innerText = "$1000";
+
+        if (currentMain === 'RPG') btnRPG.innerText = "已裝備";
+        else btnRPG.innerText = "$2000";
     }
+
+    window.buyWeapon = function(type, cost) {
+        if (STATE.money < cost) return;
+        
+        // 替換主武器 (Slot 0)
+        if (type === 'm249') {
+            inventory[0] = WEAPON_DEFS.m249;
+        } else if (type === 'rpg') {
+            inventory[0] = WEAPON_DEFS.rpg;
+        }
+        
+        // 更新 UI 名稱
+        document.getElementById('name-0').innerText = inventory[0].name;
+        
+        STATE.money -= cost;
+        document.getElementById('money-val').innerText = '$' + STATE.money;
+        
+        // 如果當前拿著主武器，刷新模型
+        if (STATE.currentSlot === 0) switchSlot(0);
+        
+        updateShopUI();
+    };
 
     window.buyItem = function(item, cost) {
         if (STATE.money < cost) return;
-
         if (item === 'health') {
             if (STATE.hp >= 100) return;
             STATE.hp = Math.min(100, STATE.hp + 50);
-            updateHUD();
         } else if (item === 'armor') {
             STATE.armor = Math.min(100, STATE.armor + 50);
-            updateHUD();
-        } else if (item === 'm249') {
-            if (WEAPONS[1].unlocked) return;
-            WEAPONS[1].unlocked = true;
-            document.getElementById('slot-1').classList.remove('locked');
-        } else if (item === 'rpg') {
-            if (WEAPONS[2].unlocked) return;
-            WEAPONS[2].unlocked = true;
-            document.getElementById('slot-2').classList.remove('locked');
         }
-
         STATE.money -= cost;
         document.getElementById('money-val').innerText = '$' + STATE.money;
-        updateShopUI();
+        updateHUD();
     };
 
     function updateHUD() {
@@ -501,9 +660,7 @@
     const clock = new THREE.Clock();
 
     function updatePhysics(delta) {
-        // [修正] 移動邏輯反轉
-        // W = 前進 (Local Z負方向), S = 後退 (Local Z正方向)
-        const forward = Number(input.w) - Number(input.s); // 之前是 s - w，現在改為 w - s
+        const forward = Number(input.w) - Number(input.s);
         const side = Number(input.d) - Number(input.a);
 
         if (input.w || input.s) velocity.z -= forward * CONFIG.walkSpeed * delta * 5.0;
@@ -523,13 +680,6 @@
             velocity.y = 0;
             STATE.canJump = true;
         }
-
-        weaponMeshes.forEach(m => {
-            if (m.position.z > (m === weaponMeshes[2] ? 0 : 0)) {
-                 m.position.z -= delta * 2;
-                 if(m.position.z < 0) m.position.z = 0;
-            }
-        });
     }
 
     function updateEnemies(delta) {
@@ -539,7 +689,10 @@
 
             const dist = enemy.position.distanceTo(playerBody.position);
             if (dist < 2.0) {
-                takeDamage(enemy.userData.damage * delta);
+                // 簡單的受傷冷卻
+                if (Math.random() < 0.1) {
+                    takeDamage(enemy.userData.damage);
+                }
             }
         });
     }
@@ -547,15 +700,10 @@
     function takeDamage(amount) {
         let actualDmg = amount;
         if (STATE.armor > 0) {
-            const armorAbsorb = amount * 0.5;
-            STATE.armor -= armorAbsorb;
+            STATE.armor -= amount * 0.5;
             actualDmg = amount * 0.5;
-            if (STATE.armor < 0) {
-                actualDmg += Math.abs(STATE.armor);
-                STATE.armor = 0;
-            }
+            if (STATE.armor < 0) STATE.armor = 0;
         }
-        
         STATE.hp -= actualDmg;
         updateHUD();
 
@@ -566,7 +714,7 @@
             STATE.hp = 0;
             STATE.isPlaying = false;
             document.exitPointerLock();
-            alert("GAME OVER - YOU DIED");
+            alert("GAME OVER");
             location.reload();
         }
     }
@@ -578,6 +726,7 @@
             const delta = Math.min(clock.getDelta(), 0.1);
             updatePhysics(delta);
             updateEnemies(delta);
+            processShooting(); // 處理按住連射
         } else {
             clock.getDelta();
         }
@@ -585,6 +734,8 @@
         renderer.render(scene, camera);
     }
 
+    // 初始化
+    switchSlot(0); // 確保一開始顯示正確武器
     startWave(1);
     animate();
 
