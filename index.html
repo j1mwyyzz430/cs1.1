@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Night Survival FPS: Boss Wave</title>
+    <title>Night Survival FPS: Boss Wave (Fixed)</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #050505; font-family: 'Arial', sans-serif; user-select: none; }
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Arial', sans-serif; user-select: none; }
         
         /* UI 層 */
         #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
@@ -66,7 +66,7 @@
         .close-shop { margin-top: 20px; padding: 10px; background: #c00; color: #fff; border: none; font-weight: bold; cursor: pointer; }
 
         /* 開始菜單 */
-        #menu { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; color: #fff; z-index: 100; }
+        #menu { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; flex-direction: column; justify-content: center; align-items: center; color: #fff; z-index: 100; }
         h1 { color: #f00; font-size: 60px; margin: 0 0 10px 0; text-transform: uppercase; letter-spacing: 5px; text-shadow: 0 0 10px #f00; }
         .controls { text-align: left; background: rgba(255,255,255,0.1); padding: 20px; border-radius: 8px; margin-bottom: 20px; }
         .key { display: inline-block; background: #333; padding: 2px 6px; border-radius: 4px; border: 1px solid #666; color: #ffcc00; font-weight: bold; margin: 0 2px; }
@@ -139,7 +139,7 @@
     <div id="menu">
         <h1>NIGHT SURVIVAL</h1>
         <div class="controls">
-            <p><span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span> 移動</p>
+            <p><span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span> 移動 (已修復方向)</p>
             <p><span class="key">B</span> 開啟/關閉 商店</p>
             <p><span class="key">滑鼠左鍵</span> 射擊</p>
             <p><span class="key">1</span><span class="key">2</span><span class="key">3</span> 切換武器</p>
@@ -181,9 +181,10 @@
 
     // --- Three.js 初始化 ---
     const scene = new THREE.Scene();
-    // 黑夜背景與迷霧
-    scene.background = new THREE.Color(0x050505);
-    scene.fog = new THREE.FogExp2(0x050505, 0.03); // 濃霧
+    
+    // [修正] 調整背景顏色與迷霧，讓畫面不要太黑
+    scene.background = new THREE.Color(0x101018); // 深藍黑色，不是純黑
+    scene.fog = new THREE.FogExp2(0x101018, 0.015); // 降低迷霧濃度 (0.03 -> 0.015)
 
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -192,17 +193,18 @@
     document.body.appendChild(renderer.domElement);
 
     // --- 燈光系統 ---
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.1); // 極暗環境光
+    // [修正] 提高環境光亮度
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4); // 0.1 -> 0.4
     scene.add(ambientLight);
 
-    // 月光
-    const moonLight = new THREE.DirectionalLight(0x4444ff, 0.3);
+    // [修正] 提高月光亮度
+    const moonLight = new THREE.DirectionalLight(0x6666ff, 0.8); // 0.3 -> 0.8
     moonLight.position.set(50, 100, 50);
     moonLight.castShadow = true;
     scene.add(moonLight);
 
     // 玩家手電筒 (SpotLight)
-    const flashLight = new THREE.SpotLight(0xffffee, 1.5, 60, Math.PI/6, 0.5, 1);
+    const flashLight = new THREE.SpotLight(0xffffee, 1.2, 60, Math.PI/6, 0.5, 1);
     flashLight.position.set(0, 0, 0);
     flashLight.target.position.set(0, 0, -1);
     camera.add(flashLight);
@@ -232,7 +234,7 @@
     m3.rotation.x = Math.PI/2; m3.visible = false; weaponMeshes.push(m3); weaponContainer.add(m3);
 
     // --- 地圖 ---
-    const matFloor = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+    const matFloor = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.8 }); // 地板稍微亮一點
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), matFloor);
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
@@ -240,7 +242,7 @@
 
     // 隨機障礙物
     const obstacles = [];
-    const matBox = new THREE.MeshStandardMaterial({ color: 0x333333 });
+    const matBox = new THREE.MeshStandardMaterial({ color: 0x444444 }); // 障礙物稍微亮一點
     for(let i=0; i<30; i++) {
         const h = Math.random() * 3 + 1;
         const mesh = new THREE.Mesh(new THREE.BoxGeometry(2, h, 2), matBox);
@@ -272,9 +274,9 @@
         
         // 屬性
         enemy.userData = {
-            hp: isBoss ? 2000 : 50, // Boss 血量 2000, 普通 50
+            hp: isBoss ? 2000 : 50, 
             maxHp: isBoss ? 2000 : 50,
-            speed: isBoss ? 3.5 : (2.0 + Math.random() * 2), // Boss 慢一點
+            speed: isBoss ? 3.5 : (2.0 + Math.random() * 2),
             damage: isBoss ? 30 : 10,
             isBoss: isBoss,
             score: isBoss ? 1000 : 50
@@ -329,7 +331,6 @@
             menu.style.display = 'none';
             shopMenu.style.display = 'none';
         } else {
-            // 如果不是因為開商店而解鎖，那就是暫停
             if (!STATE.isShopOpen) {
                 STATE.isPlaying = false;
                 menu.style.display = 'flex';
@@ -340,15 +341,13 @@
     // 商店開關
     function toggleShop() {
         if (STATE.isShopOpen) {
-            // 關閉商店，回到遊戲
             STATE.isShopOpen = false;
             shopMenu.style.display = 'none';
             document.body.requestPointerLock();
         } else {
-            // 開啟商店
             STATE.isShopOpen = true;
-            STATE.isPlaying = false; // 停止移動
-            document.exitPointerLock(); // 釋放滑鼠
+            STATE.isPlaying = false;
+            document.exitPointerLock();
             shopMenu.style.display = 'flex';
             updateShopUI();
         }
@@ -359,8 +358,8 @@
         if (!STATE.isPlaying) return;
 
         switch(e.code) {
-            case 'KeyS': input.w = true; break;
-            case 'KeyW': input.s = true; break;
+            case 'KeyW': input.w = true; break;
+            case 'KeyS': input.s = true; break;
             case 'KeyA': input.a = true; break;
             case 'KeyD': input.d = true; break;
             case 'Space': if(STATE.canJump) { velocity.y = CONFIG.jumpForce; STATE.canJump = false; } break;
@@ -372,8 +371,8 @@
 
     document.addEventListener('keyup', (e) => {
         switch(e.code) {
-            case 'KeyS': input.w = false; break;
-            case 'KeyW': input.s = false; break;
+            case 'KeyW': input.w = false; break;
+            case 'KeyS': input.s = false; break;
             case 'KeyA': input.a = false; break;
             case 'KeyD': input.d = false; break;
         }
@@ -389,7 +388,7 @@
     // --- 遊戲邏輯 ---
 
     function switchWeapon(idx) {
-        if (!WEAPONS[idx].unlocked) return; // 未解鎖不能切換
+        if (!WEAPONS[idx].unlocked) return;
         STATE.currentWeaponIdx = idx;
         weaponMeshes.forEach((m, i) => m.visible = (i === idx));
         document.querySelectorAll('.slot').forEach((el, i) => el.classList.toggle('active', i === idx));
@@ -401,37 +400,29 @@
         if (now - STATE.lastShotTime < weapon.fireRate) return;
         STATE.lastShotTime = now;
 
-        // 槍口閃光效果
         const flash = new THREE.PointLight(weapon.color, 1, 5);
         flash.position.set(0.5, -0.2, -1);
         camera.add(flash);
         setTimeout(() => camera.remove(flash), 50);
 
-        // 後座力動畫
         weaponMeshes[STATE.currentWeaponIdx].position.z += 0.2;
 
-        // 射線檢測
         const raycaster = new THREE.Raycaster();
         raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
         
-        // 檢測是否打中敵人
         const intersects = raycaster.intersectObjects(enemies);
         if (intersects.length > 0) {
             const hit = intersects[0];
             const enemy = hit.object;
             
-            // 扣血
             enemy.userData.hp -= weapon.damage;
 
-            // 擊退效果
             const pushDir = hit.point.clone().sub(playerBody.position).normalize();
             enemy.position.add(pushDir.multiplyScalar(0.5));
 
-            // 死亡判定
             if (enemy.userData.hp <= 0) {
                 killEnemy(enemy);
             } else if (enemy.userData.isBoss) {
-                // 更新 Boss 血條
                 const pct = (enemy.userData.hp / enemy.userData.maxHp) * 100;
                 document.getElementById('boss-hp-bar').style.width = pct + '%';
             }
@@ -443,7 +434,6 @@
         enemies.splice(enemies.indexOf(enemy), 1);
         STATE.enemiesRemaining--;
         
-        // 加錢
         addMoney(enemy.userData.score);
 
         if (enemy.userData.isBoss) {
@@ -452,12 +442,10 @@
             alert("VICTORY! BOSS DEFEATED!");
         }
 
-        // 檢查波數結束
         if (STATE.enemiesRemaining <= 0 && !STATE.bossActive) {
             if (STATE.wave < 3) {
                 setTimeout(() => startWave(STATE.wave + 1), 2000);
             } else {
-                // 遊戲全通
                 document.getElementById('wave-announce').innerText = "YOU SURVIVED";
                 document.getElementById('wave-announce').style.opacity = 1;
             }
@@ -513,8 +501,9 @@
     const clock = new THREE.Clock();
 
     function updatePhysics(delta) {
-        // 1. 玩家移動 (WASD)
-        const forward = Number(input.s) - Number(input.w);
+        // [修正] 移動邏輯反轉
+        // W = 前進 (Local Z負方向), S = 後退 (Local Z正方向)
+        const forward = Number(input.w) - Number(input.s); // 之前是 s - w，現在改為 w - s
         const side = Number(input.d) - Number(input.a);
 
         if (input.w || input.s) velocity.z -= forward * CONFIG.walkSpeed * delta * 5.0;
@@ -535,10 +524,8 @@
             STATE.canJump = true;
         }
 
-        // 武器動畫回歸
         weaponMeshes.forEach(m => {
-            if (m.position.z > (m === weaponMeshes[2] ? 0 : 0)) { // RPG 原點不同
-                 // 簡單的線性插值讓武器回到原位
+            if (m.position.z > (m === weaponMeshes[2] ? 0 : 0)) {
                  m.position.z -= delta * 2;
                  if(m.position.z < 0) m.position.z = 0;
             }
@@ -547,28 +534,24 @@
 
     function updateEnemies(delta) {
         enemies.forEach(enemy => {
-            // 簡單 AI: 面向玩家並移動
             enemy.lookAt(playerBody.position.x, enemy.position.y, playerBody.position.z);
             enemy.translateZ(enemy.userData.speed * delta);
 
-            // 碰撞檢測 (攻擊玩家)
             const dist = enemy.position.distanceTo(playerBody.position);
             if (dist < 2.0) {
-                // 受到傷害
                 takeDamage(enemy.userData.damage * delta);
             }
         });
     }
 
     function takeDamage(amount) {
-        // 護甲抵消 50% 傷害
         let actualDmg = amount;
         if (STATE.armor > 0) {
             const armorAbsorb = amount * 0.5;
             STATE.armor -= armorAbsorb;
             actualDmg = amount * 0.5;
             if (STATE.armor < 0) {
-                actualDmg += Math.abs(STATE.armor); // 護甲爆了，剩餘傷害轉給血量
+                actualDmg += Math.abs(STATE.armor);
                 STATE.armor = 0;
             }
         }
@@ -576,7 +559,6 @@
         STATE.hp -= actualDmg;
         updateHUD();
 
-        // 畫面變紅提示
         document.body.style.boxShadow = "inset 0 0 50px rgba(255,0,0,0.5)";
         setTimeout(() => document.body.style.boxShadow = "none", 100);
 
@@ -597,17 +579,15 @@
             updatePhysics(delta);
             updateEnemies(delta);
         } else {
-            clock.getDelta(); // 暫停時也要消耗時間避免 delta 累積
+            clock.getDelta();
         }
         
         renderer.render(scene, camera);
     }
 
-    // 啟動第一波
     startWave(1);
     animate();
 
-    // 視窗調整
     window.addEventListener('resize', () => {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
@@ -617,4 +597,3 @@
 </script>
 </body>
 </html>
-
