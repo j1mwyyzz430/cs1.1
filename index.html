@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Night Survival: Zombie Face Edition</title>
+    <title>Night Survival: Voxel Zombie Edition</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Arial', sans-serif; user-select: none; }
         
@@ -154,10 +154,6 @@
     </div>
 
 <script>
-    // --- 在這裡替換你的圖片網址 ---
-    // 下面這個是示範用的綠色殭屍臉
-    const ZOMBIE_IMG_URL = 'https://cdn-icons-png.flaticon.com/512/1995/1995646.png'; 
-
     // --- 遊戲參數 ---
     const CONFIG = {
         walkSpeed: 12.0,
@@ -203,10 +199,6 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
     document.body.appendChild(renderer.domElement);
-
-    // 載入貼圖
-    const textureLoader = new THREE.TextureLoader();
-    const zombieFaceTexture = textureLoader.load(ZOMBIE_IMG_URL);
 
     // --- 燈光 ---
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
@@ -290,70 +282,92 @@
         obstacles.push(mesh);
     }
 
-    // --- 敵人 (更新版：頭部貼圖) ---
+    // --- 敵人系統 (手工建模版) ---
     const enemies = [];
     
-    // 材質定義
-    const zombieSkinMat = new THREE.MeshStandardMaterial({ color: 0x00aa00 }); // 身體綠色
-    const bossSkinMat = new THREE.MeshStandardMaterial({ color: 0xaa0000 });   // BOSS 紅色
+    // 預先定義材質，提升效能
+    const matZombieGreen = new THREE.MeshStandardMaterial({ color: 0x55aa55 }); // 腐爛綠
+    const matBossRed = new THREE.MeshStandardMaterial({ color: 0xaa2222 });     // BOSS 紅
+    const matEyeWhite = new THREE.MeshStandardMaterial({ color: 0xffffff });
+    const matEyeBlack = new THREE.MeshStandardMaterial({ color: 0x000000 });
+    const matBrainPink = new THREE.MeshStandardMaterial({ color: 0xff88aa });
+    const matMouthDark = new THREE.MeshStandardMaterial({ color: 0x330000 });
 
     function spawnEnemy(isBoss = false) {
-        // 建立一個 Group 來包含頭和身體
         const enemyGroup = new THREE.Group();
 
-        // 1. 身體部分
-        const bodyW = isBoss ? 2.0 : 0.6;
-        const bodyH = isBoss ? 3.0 : 1.0;
-        const bodyD = isBoss ? 1.0 : 0.4;
-        const bodyGeo = new THREE.BoxGeometry(bodyW, bodyH, bodyD);
-        const bodyMat = isBoss ? bossSkinMat : zombieSkinMat;
-        const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+        // 尺寸係數
+        const scale = isBoss ? 2.5 : 1.0;
         
-        // 身體位置 (放在腳底往上算)
+        // 1. 身體
+        const bodyW = 0.6 * scale;
+        const bodyH = 1.0 * scale;
+        const bodyD = 0.4 * scale;
+        const bodyMat = isBoss ? matBossRed : matZombieGreen;
+        const bodyMesh = new THREE.Mesh(new THREE.BoxGeometry(bodyW, bodyH, bodyD), bodyMat);
         bodyMesh.position.y = bodyH / 2;
         bodyMesh.castShadow = true;
-
-        // 2. 頭部部分 (帶貼圖)
-        const headSize = isBoss ? 1.5 : 0.6;
-        const headGeo = new THREE.BoxGeometry(headSize, headSize, headSize);
-        
-        // 定義頭部材質陣列 [右, 左, 上, 下, 前, 後]
-        // 注意：BoxGeometry 的面索引 4 是 Front (正面)
-        const faceMat = new THREE.MeshStandardMaterial({ 
-            map: zombieFaceTexture, 
-            transparent: true,
-            color: isBoss ? 0xffaaaa : 0xffffff // BOSS 臉稍微紅一點
-        });
-        
-        const headMaterials = [
-            bodyMat, // Right
-            bodyMat, // Left
-            bodyMat, // Top
-            bodyMat, // Bottom
-            faceMat, // Front (臉)
-            bodyMat  // Back
-        ];
-
-        const headMesh = new THREE.Mesh(headGeo, headMaterials);
-        // 頭部位置在身體上方
-        headMesh.position.y = bodyH + (headSize / 2);
-        headMesh.castShadow = true;
-
-        // 將部件加入群組
         enemyGroup.add(bodyMesh);
-        enemyGroup.add(headMesh);
+
+        // 2. 頭部群組 (用來裝五官)
+        const headGroup = new THREE.Group();
+        headGroup.position.y = bodyH + (0.3 * scale); // 脖子位置
+
+        // 2.1 頭顱本體
+        const headSize = 0.6 * scale;
+        const skullMesh = new THREE.Mesh(new THREE.BoxGeometry(headSize, headSize, headSize), bodyMat);
+        skullMesh.castShadow = true;
+        headGroup.add(skullMesh);
+
+        // 2.2 眼睛 (左眼大，右眼小，製造瘋狂感)
+        const eyeZ = headSize / 2 + 0.01; // 稍微突出表面
+        
+        // 左眼 (大)
+        const leftEyeSize = 0.2 * scale;
+        const leftEye = new THREE.Mesh(new THREE.BoxGeometry(leftEyeSize, leftEyeSize, 0.05), matEyeWhite);
+        leftEye.position.set(-0.15 * scale, 0.1 * scale, eyeZ);
+        headGroup.add(leftEye);
+        // 左瞳孔
+        const leftPupil = new THREE.Mesh(new THREE.BoxGeometry(0.05 * scale, 0.05 * scale, 0.06), matEyeBlack);
+        leftPupil.position.set(-0.15 * scale, 0.1 * scale, eyeZ + 0.02);
+        headGroup.add(leftPupil);
+
+        // 右眼 (小)
+        const rightEyeSize = 0.12 * scale;
+        const rightEye = new THREE.Mesh(new THREE.BoxGeometry(rightEyeSize, rightEyeSize, 0.05), matEyeWhite);
+        rightEye.position.set(0.15 * scale, 0.1 * scale, eyeZ);
+        headGroup.add(rightEye);
+        // 右瞳孔
+        const rightPupil = new THREE.Mesh(new THREE.BoxGeometry(0.03 * scale, 0.03 * scale, 0.06), matEyeBlack);
+        rightPupil.position.set(0.15 * scale, 0.1 * scale, eyeZ + 0.02);
+        headGroup.add(rightPupil);
+
+        // 2.3 嘴巴 (張開的)
+        const mouthW = 0.4 * scale;
+        const mouthH = 0.15 * scale;
+        const mouth = new THREE.Mesh(new THREE.BoxGeometry(mouthW, mouthH, 0.05), matMouthDark);
+        mouth.position.set(0, -0.15 * scale, eyeZ);
+        headGroup.add(mouth);
+
+        // 2.4 露出的腦袋 (粉紅色方塊在頭頂)
+        const brainSize = 0.25 * scale;
+        const brain = new THREE.Mesh(new THREE.BoxGeometry(brainSize, 0.1 * scale, brainSize), matBrainPink);
+        brain.position.set(0.15 * scale, headSize / 2, 0); // 偏右一點
+        headGroup.add(brain);
+
+        enemyGroup.add(headGroup);
 
         // 設定生成位置
         const angle = Math.random() * Math.PI * 2;
         const dist = 30 + Math.random() * 30;
         enemyGroup.position.set(Math.sin(angle)*dist, 0, Math.cos(angle)*dist);
 
-        // 數據儲存在 Group 上
+        // 數據設定 (傷害已降低)
         enemyGroup.userData = {
             hp: isBoss ? 3000 : 100, 
             maxHp: isBoss ? 3000 : 100,
             speed: isBoss ? 4.0 : (2.5 + Math.random() * 3),
-            damage: isBoss ? 40 : 15,
+            damage: isBoss ? 15 : 5,  // <--- 這裡修改了傷害 (原: 40/15)
             isBoss: isBoss,
             score: isBoss ? 2000 : 100
         };
@@ -507,7 +521,6 @@
         if (weapon.type === 'explosive') {
             const raycaster = new THREE.Raycaster();
             raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-            // 讓 RPG 可以打到地板和障礙物，也可以打到敵人(recursive=true)
             const intersects = raycaster.intersectObjects([...enemies, floor, ...obstacles], true);
             if (intersects.length > 0) {
                 createExplosion(intersects[0].point, weapon.damage);
@@ -518,18 +531,15 @@
             if (weapon.type === 'melee') raycaster.far = weapon.range;
             else raycaster.far = 1000;
 
-            // 這裡很重要：recursive = true，因為 enemies 現在是 Group，裡面有 Mesh
             const intersects = raycaster.intersectObjects(enemies, true);
             if (intersects.length > 0) {
                 const hit = intersects[0];
-                // 往上找直到找到 Group (因為 userData 在 Group 上)
                 let target = hit.object;
                 while(target.parent && !target.userData.hp) {
                     target = target.parent;
                 }
 
                 if (target.userData.hp) {
-                    // 擊退效果
                     const pushDir = hit.point.clone().sub(playerBody.position).normalize();
                     target.position.add(pushDir.multiplyScalar(weapon.type === 'melee' ? 2.0 : 0.2));
                     damageEnemy(target, weapon.damage);
@@ -564,17 +574,16 @@
         if (enemy.userData.hp <= 0) {
             killEnemy(enemy);
         } else {
-            // 簡單的受傷閃爍 (遍歷 Group 內的所有 Mesh)
-            enemy.children.forEach(mesh => {
-                if(mesh.material && mesh.material.emissive) {
-                    mesh.material.emissive.setHex(0xffffff);
+            // 受傷閃爍 (遞歸遍歷所有子物件)
+            enemy.traverse((child) => {
+                if(child.isMesh && child.material && child.material.emissive) {
+                    child.material.emissive.setHex(0xffffff);
                 }
             });
             setTimeout(() => {
-                enemy.children.forEach(mesh => {
-                    if(mesh.material && mesh.material.emissive) {
-                        const color = enemy.userData.isBoss ? 0x550000 : 0x003300;
-                        mesh.material.emissive.setHex(color);
+                enemy.traverse((child) => {
+                    if(child.isMesh && child.material && child.material.emissive) {
+                        child.material.emissive.setHex(0x000000);
                     }
                 });
             }, 50);
@@ -697,7 +706,8 @@
 
             const dist = enemy.position.distanceTo(playerBody.position);
             if (dist < 2.0) {
-                if (Math.random() < 0.1) takeDamage(enemy.userData.damage);
+                // 降低攻擊頻率
+                if (Math.random() < 0.05) takeDamage(enemy.userData.damage);
             }
         });
     }
