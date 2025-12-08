@@ -3,14 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Night Survival: Audio Enhanced</title>
+    <title>Night Survival: The Final Moon</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Arial', sans-serif; user-select: none; }
         
-        /* UI 層 */
         #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
         
-        /* 受傷血腥特效 */
         #damage-vignette {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             box-shadow: inset 0 0 150px rgba(255, 0, 0, 0.9);
@@ -18,7 +16,6 @@
             mix-blend-mode: overlay;
         }
 
-        /* 偷襲警告 */
         #danger-warning {
             position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%);
             font-size: 40px; color: #ff0000; font-weight: 900; text-shadow: 2px 2px 0 #000;
@@ -31,7 +28,6 @@
             100% { transform: translate(-52%, -50%); }
         }
 
-        /* 準心 */
         #crosshair {
             position: absolute; top: 50%; left: 50%; width: 24px; height: 24px;
             transform: translate(-50%, -50%); transition: 0.1s; z-index: 5;
@@ -41,7 +37,6 @@
         #crosshair::after { top: 0; left: 11px; width: 2px; height: 24px; }
         .recoil #crosshair { transform: translate(-50%, -50%) scale(1.5); opacity: 0.5; }
 
-        /* BOSS 血條 */
         #boss-bar-container {
             position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
             width: 70%; height: 30px; background: rgba(0,0,0,0.8); border: 2px solid #500;
@@ -51,21 +46,18 @@
         #boss-hp-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #ff0000, #880000); transition: width 0.2s; }
         #boss-label { position: absolute; top: -25px; left: 0; color: #f00; font-weight: bold; text-shadow: 1px 1px 0 #000; letter-spacing: 2px; font-size: 20px; display: flex; justify-content: space-between; width: 100%; }
 
-        /* 底部資訊欄 */
         #hud-bottom { position: absolute; bottom: 30px; left: 30px; display: flex; gap: 30px; color: #fff; text-shadow: 2px 2px 0 #000; }
         .hud-box { display: flex; flex-direction: column; }
         .hud-label { font-size: 12px; color: #aaa; font-weight: bold; text-transform: uppercase; }
         .hud-value { font-size: 32px; font-weight: 900; letter-spacing: 1px; }
         .c-green { color: #0f0; } .c-yellow { color: #ffcc00; } .c-blue { color: #00ccff; }
 
-        /* 武器欄 */
         #weapon-slots { position: absolute; bottom: 30px; right: 30px; display: flex; gap: 10px; }
         .slot { width: 70px; height: 70px; background: rgba(0,0,0,0.6); border: 2px solid #333; color: #555; display: flex; flex-direction: column; justify-content: center; align-items: center; font-weight: bold; transition: 0.2s; position: relative; }
         .slot.active { border-color: #0f0; color: #fff; background: rgba(0, 255, 0, 0.1); transform: scale(1.1); box-shadow: 0 0 15px rgba(0,255,0,0.3); }
         .slot span { font-size: 10px; position: absolute; top: 2px; left: 4px; }
         .w-name { font-size: 12px; text-align: center; }
 
-        /* 波數與劇情提示 */
         #wave-announce {
             position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%);
             font-size: 60px; color: #ff0000; font-weight: 900; text-shadow: 0 0 20px #f00;
@@ -73,7 +65,6 @@
             white-space: pre-line;
         }
         
-        /* 任務提示 (鎖血時顯示) */
         #mission-hint {
             position: absolute; top: 15%; left: 50%; transform: translate(-50%, -50%);
             font-size: 24px; color: #00ffff; font-weight: bold; text-shadow: 0 0 10px #00f;
@@ -82,14 +73,12 @@
 
         @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
 
-        /* 二階段特效覆蓋層 */
         #phase2-flash {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: white; opacity: 0; pointer-events: none; transition: opacity 2s;
             z-index: 50;
         }
 
-        /* 商店介面 */
         #shop-menu {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             width: 600px; background: rgba(10, 10, 15, 0.95); border: 2px solid #ffcc00;
@@ -104,7 +93,6 @@
         .shop-item button:disabled { background: #555; color: #888; cursor: not-allowed; }
         .close-shop { margin-top: 20px; padding: 10px; background: #c00; color: #fff; border: none; font-weight: bold; cursor: pointer; }
 
-        /* 開始菜單 */
         #menu { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; flex-direction: column; justify-content: center; align-items: center; color: #fff; z-index: 100; }
         h1 { color: #f00; font-size: 60px; margin: 0 0 10px 0; text-transform: uppercase; letter-spacing: 5px; text-shadow: 0 0 10px #f00; }
         .controls { text-align: left; background: rgba(255,255,255,0.1); padding: 20px; border-radius: 8px; margin-bottom: 20px; }
@@ -146,7 +134,6 @@
         </div>
     </div>
 
-    <!-- 商店 -->
     <div id="shop-menu">
         <h2>Black Market</h2>
         <div class="shop-grid">
@@ -186,7 +173,7 @@
         <h1>NIGHT SURVIVAL</h1>
         <div class="controls">
             <p><span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span> 移動</p>
-            <p><span class="key">按住左鍵</span> 攻擊 (擊退BOSS)</p>
+            <p><span class="key">按住左鍵</span> 攻擊</p>
             <p><span class="key">1</span><span class="key">2</span><span class="key">3</span> 切換武器</p>
             <p><span class="key">B</span> 商店</p>
         </div>
@@ -195,18 +182,18 @@
     </div>
 
 <script>
-    // --- 音效引擎 (Web Audio API) ---
+    // --- 音效引擎 2.0 (Web Audio API) ---
     const SoundGen = {
         ctx: null,
         bgmOscillators: [],
         bgmGain: null,
-        isMuted: false,
+        isBossMusic: false,
 
         init: function() {
             if (this.ctx) return;
             const AudioContext = window.AudioContext || window.webkitAudioContext;
             this.ctx = new AudioContext();
-            this.startBGM();
+            this.startBGM(false);
         },
 
         createNoiseBuffer: function() {
@@ -224,7 +211,6 @@
             if (!this.ctx) return;
             const t = this.ctx.currentTime;
             
-            // 噪音源 (火藥爆炸聲)
             const noise = this.ctx.createBufferSource();
             noise.buffer = this.createNoiseBuffer();
             const noiseFilter = this.ctx.createBiquadFilter();
@@ -248,7 +234,6 @@
                 noise.start(t);
                 noise.stop(t + 0.15);
             } else if (type === 'rpg') {
-                // RPG 發射聲 (咻~)
                 const osc = this.ctx.createOscillator();
                 const gain = this.ctx.createGain();
                 osc.connect(gain);
@@ -265,10 +250,8 @@
         playExplosion: function() {
             if (!this.ctx) return;
             const t = this.ctx.currentTime;
-            
-            // 爆炸低頻
             const osc = this.ctx.createOscillator();
-            osc.type = 'sawtooth'; // 鋸齒波更有衝擊力
+            osc.type = 'sawtooth'; 
             const oscGain = this.ctx.createGain();
             osc.connect(oscGain);
             oscGain.connect(this.ctx.destination);
@@ -280,17 +263,11 @@
             osc.start(t);
             osc.stop(t + 0.8);
 
-            // 爆炸噪音
             const noise = this.ctx.createBufferSource();
             noise.buffer = this.createNoiseBuffer();
-            const noiseFilter = this.ctx.createBiquadFilter();
-            noiseFilter.type = 'lowpass';
-            noiseFilter.frequency.value = 800;
             const noiseGain = this.ctx.createGain();
-            noise.connect(noiseFilter);
-            noiseFilter.connect(noiseGain);
+            noise.connect(noiseGain);
             noiseGain.connect(this.ctx.destination);
-            
             noiseGain.gain.setValueAtTime(0.8, t);
             noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 1.0);
             noise.start(t);
@@ -298,8 +275,100 @@
         },
 
         playZombieGroan: function() {
-            if (!this.ctx || Math.random() > 0.3) return; // 限制頻率
+            if (!this.ctx || Math.random() > 0.3) return; 
             const t = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            osc.type = 'sawtooth';
+            const gain = this.ctx.createGain();
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'lowpass';
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(this.ctx.destination);
+
+            const pitch = 50 + Math.random() * 50;
+            osc.frequency.setValueAtTime(pitch, t);
+            osc.frequency.linearRampToValueAtTime(pitch * 0.8, t + 0.5);
+            filter.frequency.setValueAtTime(300, t);
+            filter.frequency.linearRampToValueAtTime(100, t + 0.5);
+            gain.gain.setValueAtTime(0.1, t);
+            gain.gain.linearRampToValueAtTime(0, t + 0.6);
+            osc.start(t);
+            osc.stop(t + 0.6);
+        },
+
+        // 高階殭屍奸笑
+        playEvilLaugh: function() {
+            if (!this.ctx) return;
+            const t = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            osc.type = 'sawtooth';
+            const gain = this.ctx.createGain();
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+
+            // 快速顫音
+            osc.frequency.setValueAtTime(600, t);
+            osc.frequency.linearRampToValueAtTime(400, t + 0.1);
+            osc.frequency.linearRampToValueAtTime(600, t + 0.2);
+            osc.frequency.linearRampToValueAtTime(300, t + 0.4);
+
+            gain.gain.setValueAtTime(0.1, t);
+            gain.gain.linearRampToValueAtTime(0, t + 0.4);
+            osc.start(t);
+            osc.stop(t + 0.4);
+        },
+
+        // 惡魔咆哮/大笑
+        playBossLaugh: function() {
+            if (!this.ctx) return;
+            const t = this.ctx.currentTime;
+            
+            // 低頻失真笑聲
+            for(let i=0; i<3; i++) {
+                const osc = this.ctx.createOscillator();
+                osc.type = 'square';
+                const gain = this.ctx.createGain();
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                const startFreq = 150 - (i*30);
+                osc.frequency.setValueAtTime(startFreq, t + i*0.2);
+                osc.frequency.exponentialRampToValueAtTime(startFreq * 1.5, t + i*0.2 + 0.1);
+                osc.frequency.exponentialRampToValueAtTime(50, t + i*0.2 + 0.4);
+
+                gain.gain.setValueAtTime(0, t + i*0.2);
+                gain.gain.linearRampToValueAtTime(0.4, t + i*0.2 + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.01, t + i*0.2 + 0.5);
+
+                osc.start(t + i*0.2);
+                osc.stop(t + i*0.2 + 0.6);
+            }
+        },
+
+        playMoonSlash: function() {
+            if (!this.ctx) return;
+            const t = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            osc.type = 'sine';
+            const gain = this.ctx.createGain();
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.frequency.setValueAtTime(800, t);
+            osc.frequency.exponentialRampToValueAtTime(2000, t + 0.1);
+            osc.frequency.exponentialRampToValueAtTime(100, t + 0.5);
+            gain.gain.setValueAtTime(0.3, t);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
+            osc.start(t);
+            osc.stop(t + 0.5);
+        },
+
+        // 黑月斬擊音效 (重低音)
+        playBlackMoonSound: function() {
+            if (!this.ctx) return;
+            const t = this.ctx.currentTime;
+            
+            // 低頻衝擊
             const osc = this.ctx.createOscillator();
             osc.type = 'sawtooth';
             const gain = this.ctx.createGain();
@@ -310,104 +379,89 @@
             filter.connect(gain);
             gain.connect(this.ctx.destination);
 
-            const pitch = 50 + Math.random() * 50;
-            osc.frequency.setValueAtTime(pitch, t);
-            osc.frequency.linearRampToValueAtTime(pitch * 0.8, t + 0.5);
+            osc.frequency.setValueAtTime(50, t);
+            osc.frequency.exponentialRampToValueAtTime(10, t + 0.5);
             
-            filter.frequency.setValueAtTime(300, t);
-            filter.frequency.linearRampToValueAtTime(100, t + 0.5);
+            filter.frequency.setValueAtTime(800, t);
+            filter.frequency.exponentialRampToValueAtTime(50, t + 0.4);
 
-            gain.gain.setValueAtTime(0.1, t); // 聲音小一點
-            gain.gain.linearRampToValueAtTime(0, t + 0.6);
+            gain.gain.setValueAtTime(0.8, t);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + 0.6);
 
             osc.start(t);
             osc.stop(t + 0.6);
         },
 
-        playBossScream: function() {
-            if (!this.ctx) return;
-            const t = this.ctx.currentTime;
-            
-            // 雙重振盪器製造不和諧音
-            for(let i=0; i<2; i++) {
-                const osc = this.ctx.createOscillator();
-                osc.type = 'sawtooth';
-                const gain = this.ctx.createGain();
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-
-                const baseFreq = 80;
-                osc.frequency.setValueAtTime(baseFreq + i*10, t);
-                osc.frequency.exponentialRampToValueAtTime(200, t + 0.5);
-                osc.frequency.exponentialRampToValueAtTime(50, t + 2.0);
-
-                gain.gain.setValueAtTime(0.5, t);
-                gain.gain.exponentialRampToValueAtTime(0.01, t + 2.0);
-
-                osc.start(t);
-                osc.stop(t + 2.0);
-            }
+        stopBGM: function() {
+            this.bgmOscillators.forEach(o => { try{o.stop();}catch(e){} });
+            this.bgmOscillators = [];
         },
 
-        playMoonSlash: function() {
+        startBGM: function(isBoss) {
             if (!this.ctx) return;
-            const t = this.ctx.currentTime;
-            const osc = this.ctx.createOscillator();
-            osc.type = 'sine';
+            this.stopBGM();
+            this.isBossMusic = isBoss;
+
             const gain = this.ctx.createGain();
-            
-            osc.connect(gain);
             gain.connect(this.ctx.destination);
-
-            // 高頻掃描 (科幻感)
-            osc.frequency.setValueAtTime(800, t);
-            osc.frequency.exponentialRampToValueAtTime(2000, t + 0.1);
-            osc.frequency.exponentialRampToValueAtTime(100, t + 0.5);
-
-            gain.gain.setValueAtTime(0.3, t);
-            gain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
-
-            osc.start(t);
-            osc.stop(t + 0.5);
-        },
-
-        startBGM: function() {
-            if (!this.ctx) return;
-            // 創建一個深沉的背景音 (Drone)
-            const osc1 = this.ctx.createOscillator();
-            const osc2 = this.ctx.createOscillator();
-            const gain = this.ctx.createGain();
-            const filter = this.ctx.createBiquadFilter();
-            
-            osc1.type = 'sawtooth';
-            osc1.frequency.value = 50; 
-            osc2.type = 'sine';
-            osc2.frequency.value = 52; // 輕微走音製造恐怖感
-
-            filter.type = 'lowpass';
-            filter.frequency.value = 200;
-
-            osc1.connect(filter);
-            osc2.connect(filter);
-            filter.connect(gain);
-            gain.connect(this.ctx.destination);
-
-            // LFO 讓音量緩慢波動
-            const lfo = this.ctx.createOscillator();
-            lfo.frequency.value = 0.2; // 5秒一次循環
-            const lfoGain = this.ctx.createGain();
-            lfoGain.gain.value = 0.05; // 波動幅度
-            lfo.connect(lfoGain);
-            lfoGain.connect(gain.gain);
-            
-            gain.gain.value = 0.15; // 基礎音量
-            
-            osc1.start();
-            osc2.start();
-            lfo.start();
-            
-            this.bgmOscillators.push(osc1, osc2, lfo);
             this.bgmGain = gain;
+            gain.gain.value = 0.15;
+
+            if (isBoss) {
+                // 惡魔 BGM: 快速、不和諧、壓迫感
+                const osc1 = this.ctx.createOscillator();
+                osc1.type = 'sawtooth';
+                osc1.frequency.value = 40; 
+                
+                const osc2 = this.ctx.createOscillator();
+                osc2.type = 'square';
+                osc2.frequency.value = 45; // 嚴重不和諧
+
+                // 模擬心跳/警報的 LFO
+                const lfo = this.ctx.createOscillator();
+                lfo.frequency.value = 4; // 快速脈衝
+                const lfoGain = this.ctx.createGain();
+                lfoGain.gain.value = 50; 
+                lfo.connect(lfoGain);
+                lfoGain.connect(osc1.frequency);
+
+                osc1.connect(gain);
+                osc2.connect(gain);
+                
+                osc1.start();
+                osc2.start();
+                lfo.start();
+                this.bgmOscillators.push(osc1, osc2, lfo);
+            } else {
+                // 恐怖氛圍 Drone
+                const osc1 = this.ctx.createOscillator();
+                const osc2 = this.ctx.createOscillator();
+                const filter = this.ctx.createBiquadFilter();
+                
+                osc1.type = 'sawtooth';
+                osc1.frequency.value = 50; 
+                osc2.type = 'sine';
+                osc2.frequency.value = 52; 
+
+                filter.type = 'lowpass';
+                filter.frequency.value = 200;
+
+                osc1.connect(filter);
+                osc2.connect(filter);
+                filter.connect(gain);
+
+                const lfo = this.ctx.createOscillator();
+                lfo.frequency.value = 0.2; 
+                const lfoGain = this.ctx.createGain();
+                lfoGain.gain.value = 0.05; 
+                lfo.connect(lfoGain);
+                lfoGain.connect(gain.gain);
+                
+                osc1.start();
+                osc2.start();
+                lfo.start();
+                this.bgmOscillators.push(osc1, osc2, lfo);
+            }
         }
     };
 
@@ -449,7 +503,8 @@
         rpg:  { name: "RPG",    damage: 800,  rate: 1200, range: 200, type: 'explosive', color: 0xff0000, model: 'rpg', knockback: 5.0, sound: 'rpg' },
         pistol:{ name: "Pistol",damage: 20,   rate: 300,  range: 60,  type: 'hitscan', color: 0xcccccc, model: 'pistol', knockback: 0.5, sound: 'pistol' },
         axe:  { name: "Axe",    damage: 150,  rate: 600,  range: 4,   type: 'melee',   color: 0xffffff, model: 'axe', knockback: 3.0, sound: 'swing' },
-        moon: { name: "MOON BLADE", damage: 1500, rate: 600, range: 200, type: 'projectile', color: 0x00ffff, model: 'moon', knockback: 0, sound: 'moon' }
+        moon: { name: "MOON BLADE", damage: 1500, rate: 600, range: 200, type: 'projectile', color: 0x00ffff, model: 'moon', knockback: 0, sound: 'moon' },
+        black_moon: { name: "FINAL MOON", damage: 2000, rate: 1000, range: 8, type: 'melee', color: 0x000000, model: 'black_moon', knockback: 0, sound: 'black_moon' }
     };
 
     let inventory = [WEAPON_DEFS.ak, WEAPON_DEFS.pistol, WEAPON_DEFS.axe];
@@ -465,7 +520,6 @@
     renderer.shadowMap.enabled = true;
     document.body.appendChild(renderer.domElement);
 
-    // --- 燈光 ---
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
     scene.add(ambientLight);
     const moonLight = new THREE.DirectionalLight(0x6666ff, 0.8);
@@ -478,7 +532,6 @@
     camera.add(flashLight.target);
     flashLight.target.position.set(0, 0, -1);
 
-    // --- 玩家與武器模型 ---
     const playerBody = new THREE.Group();
     scene.add(playerBody);
     playerBody.add(camera);
@@ -516,29 +569,35 @@
     gAxe.position.set(-0.2, 0, 0); 
     models['axe'] = gAxe; weaponContainer.add(gAxe);
 
-    // --- 月牙之刃 ---
+    // 月牙之刃 (Ranged)
     const gMoon = new THREE.Group();
     const moonGeo = new THREE.RingGeometry(0.3, 0.5, 32, 1, 0, Math.PI * 1.2);
-    const moonMat = new THREE.MeshStandardMaterial({ 
-        color: 0x00ffff, 
-        emissive: 0x00ffff, 
-        emissiveIntensity: 2.0,
-        side: THREE.DoubleSide
-    });
+    const moonMat = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 2.0, side: THREE.DoubleSide });
     const moonMesh = new THREE.Mesh(moonGeo, moonMat);
     moonMesh.position.set(0, 0, -0.5);
     moonMesh.rotation.z = Math.PI / 4;
-    
     const moonHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.8), new THREE.MeshStandardMaterial({color:0xffffff}));
     moonHandle.rotation.x = Math.PI/2;
     moonHandle.position.set(0.1, -0.2, 0);
-
-    gMoon.add(moonMesh);
-    gMoon.add(moonHandle);
+    gMoon.add(moonMesh); gMoon.add(moonHandle);
     gMoon.position.set(-0.2, -0.1, 0);
     models['moon'] = gMoon; weaponContainer.add(gMoon);
 
-    // --- 地圖 ---
+    // 最後的月牙 (Black Moon - Melee)
+    const gBlackMoon = new THREE.Group();
+    const bMoonGeo = new THREE.RingGeometry(0.3, 0.6, 32, 1, 0, Math.PI * 1.2);
+    const bMoonMat = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0x330033, emissiveIntensity: 0.5, side: THREE.DoubleSide });
+    const bMoonMesh = new THREE.Mesh(bMoonGeo, bMoonMat);
+    bMoonMesh.position.set(0, 0, -0.5);
+    bMoonMesh.rotation.z = Math.PI / 4;
+    const bMoonHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.9), new THREE.MeshStandardMaterial({color:0x333333}));
+    bMoonHandle.rotation.x = Math.PI/2;
+    bMoonHandle.position.set(0.1, -0.2, 0);
+    gBlackMoon.add(bMoonMesh); gBlackMoon.add(bMoonHandle);
+    gBlackMoon.position.set(-0.2, -0.1, 0);
+    models['black_moon'] = gBlackMoon; weaponContainer.add(gBlackMoon);
+
+
     const matFloor = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.8 });
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(300, 300), matFloor);
     floor.rotation.x = -Math.PI / 2;
@@ -561,7 +620,6 @@
     }
     createMap();
 
-    // 宇宙星空與月亮
     const starsGeometry = new THREE.BufferGeometry();
     const starsCount = 2000;
     const posArray = new Float32Array(starsCount * 3);
@@ -576,24 +634,27 @@
 
     let voidMoon = null;
 
-    // --- 敵人系統 ---
     let enemies = [];
     let bossProjectiles = [];
     let playerProjectiles = [];
     
     const matZombieGreen = new THREE.MeshStandardMaterial({ color: 0x55aa55 });
+    const matZombieBlack = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.2 }); // 高階殭屍
     const matBossRed = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0x330000 });
     const matWing = new THREE.MeshStandardMaterial({ color: 0x220000, side: THREE.DoubleSide });
 
-    function spawnEnemy(isBoss = false) {
+    function spawnEnemy(isBoss = false, isHighTier = false) {
         if (STATE.phase2 && !isBoss) return; 
 
-        if (isBoss) SoundGen.playBossScream(); // Boss 出場音效
+        if (isBoss) SoundGen.playBossLaugh(); 
 
         const enemyGroup = new THREE.Group();
         const scale = isBoss ? 3.5 : 1.0;
         
-        const bodyMat = isBoss ? matBossRed.clone() : matZombieGreen;
+        let bodyMat = matZombieGreen;
+        if (isBoss) bodyMat = matBossRed.clone();
+        else if (isHighTier) bodyMat = matZombieBlack;
+
         const bodyMesh = new THREE.Mesh(new THREE.BoxGeometry(0.6*scale, 1.0*scale, 0.4*scale), bodyMat);
         bodyMesh.position.y = (1.0*scale) / 2;
         bodyMesh.castShadow = true;
@@ -604,7 +665,10 @@
         const skullMesh = new THREE.Mesh(new THREE.BoxGeometry(0.6*scale, 0.6*scale, 0.6*scale), bodyMat);
         headGroup.add(skullMesh);
         
-        const eyeMat = new THREE.MeshStandardMaterial({ color: isBoss ? 0xffff00 : 0xffffff, emissive: isBoss ? 0xff0000 : 0x000000 });
+        const eyeMat = new THREE.MeshStandardMaterial({ 
+            color: isBoss ? 0xffff00 : (isHighTier ? 0xff0000 : 0xffffff), 
+            emissive: isBoss ? 0xff0000 : (isHighTier ? 0xaa0000 : 0x000000) 
+        });
         const leftEye = new THREE.Mesh(new THREE.BoxGeometry(0.15*scale, 0.15*scale, 0.05), eyeMat);
         leftEye.position.set(-0.15*scale, 0.1*scale, 0.31*scale);
         headGroup.add(leftEye);
@@ -627,7 +691,6 @@
             rightWing.rotation.z = -0.2;
             rightWing.name = "wingR";
             enemyGroup.add(rightWing);
-            
             STATE.bossRef = enemyGroup;
         }
 
@@ -635,13 +698,31 @@
         const dist = isBoss ? 60 : (30 + Math.random() * 40);
         enemyGroup.position.set(Math.sin(angle)*dist, 0, Math.cos(angle)*dist);
 
+        // 數值設定
+        let hp = 100;
+        let speed = 3.0 + Math.random() * 4;
+        let score = 100;
+
+        if (STATE.wave >= 2 && !isBoss) hp = 200; // Wave 2 普通殭屍血量加倍
+        if (isHighTier) {
+            hp = 300;
+            speed = 9.0; // 很快
+            score = 300;
+        }
+        if (isBoss) {
+            hp = 10000;
+            speed = 4.0;
+            score = 50000;
+        }
+
         enemyGroup.userData = {
-            hp: isBoss ? 10000 : 100, 
-            maxHp: isBoss ? 10000 : 100,
-            speed: isBoss ? 4.0 : (3.0 + Math.random() * 4),
-            damage: isBoss ? 15 : 5,
+            hp: hp, 
+            maxHp: hp,
+            speed: speed,
+            damage: isBoss ? 15 : (isHighTier ? 10 : 5),
             isBoss: isBoss,
-            score: isBoss ? 50000 : 100,
+            isHighTier: isHighTier,
+            score: score,
             attackCooldown: 0
         };
 
@@ -659,21 +740,25 @@
         setTimeout(() => announce.style.opacity = 0, 3000);
 
         if (waveNum === 3) {
+            SoundGen.startBGM(true); // 切換 Boss 音樂
             spawnEnemy(true);
             STATE.bossActive = true;
             document.getElementById('boss-bar-container').style.display = 'block';
             for(let i=0; i<30; i++) spawnEnemy();
         } else {
-            let count = waveNum === 1 ? 10 : 25;
-            for(let i=0; i<count; i++) spawnEnemy();
+            let count = waveNum === 1 ? 10 : 30;
+            for(let i=0; i<count; i++) {
+                // Wave 2 開始有 20% 機率生成高階殭屍
+                const isHigh = (waveNum >= 2 && Math.random() < 0.2);
+                spawnEnemy(false, isHigh);
+            }
         }
     }
 
-    // --- 二階段轉場 ---
     function enterPhaseTwo() {
         if (STATE.phase2) return;
         STATE.phase2 = true;
-        SoundGen.playBossScream(); // 轉場音效
+        SoundGen.playBossLaugh();
 
         STATE.hp = 100;
         STATE.armor = 100;
@@ -728,7 +813,6 @@
         alert("BOSS 吸收了所有靈魂！世界崩塌！\n你獲得了 [虛幻月牙之刃]\n按左鍵發射「月牙天衝」！");
     }
 
-    // --- 輸入控制 ---
     const input = { w: false, a: false, s: false, d: false };
     const velocity = new THREE.Vector3();
     const menu = document.getElementById('menu');
@@ -738,7 +822,7 @@
         if (STATE.isPlaying && !STATE.isShopOpen && e.button === 0) STATE.isFiring = true;
         else if (!STATE.isPlaying && !STATE.isShopOpen) {
             document.body.requestPointerLock();
-            SoundGen.init(); // 啟動音效引擎
+            SoundGen.init(); 
         }
     });
 
@@ -806,7 +890,6 @@
         camera.rotation.x = Math.max(-1.5, Math.min(1.5, camera.rotation.x));
     });
 
-    // --- 武器系統 ---
     function switchSlot(idx) {
         STATE.currentSlot = idx;
         STATE.isFiring = false;
@@ -819,7 +902,7 @@
             models[currentWep.model].visible = true;
             models[currentWep.model].position.z = 0; 
             models[currentWep.model].rotation.x = (currentWep.model === 'rpg') ? Math.PI/2 : 0;
-            if(currentWep.model === 'axe' || currentWep.model === 'moon') {
+            if(currentWep.model === 'axe' || currentWep.model === 'moon' || currentWep.model === 'black_moon') {
                 models[currentWep.model].rotation.x = 0;
                 models[currentWep.model].position.set(-0.2, -0.1, 0);
             }
@@ -833,14 +916,14 @@
         if (now - STATE.lastShotTime < weapon.rate) return;
         STATE.lastShotTime = now;
 
-        // 播放射擊音效
         if (weapon.model === 'moon') SoundGen.playMoonSlash();
+        else if (weapon.model === 'black_moon') SoundGen.playBlackMoonSound();
         else SoundGen.playShoot(weapon.sound || 'pistol');
 
         const model = models[weapon.model];
         
         if (model) {
-            if (weapon.model === 'moon') {
+            if (weapon.model === 'moon' || weapon.model === 'black_moon') {
                 model.rotation.x = -Math.PI / 2;
                 model.rotation.y = -Math.PI / 2;
                 setTimeout(() => {
@@ -886,6 +969,12 @@
                     let target = hit.object;
                     while(target.parent && !target.userData.hp) target = target.parent;
                     if (target.userData.hp) {
+                        // 如果是 Black Moon，打擊感更重
+                        if (weapon.model === 'black_moon') {
+                            SoundGen.playExplosion();
+                            createExplosion(hit.point, 0); // 純視覺爆炸
+                        }
+
                         const pushDir = hit.point.clone().sub(playerBody.position).normalize();
                         const knockbackForce = (weapon.knockback || 0.5);
                         const resistance = target.userData.isBoss ? 0.2 : 1.0;
@@ -927,7 +1016,7 @@
     }
 
     function createExplosion(point, damage) {
-        SoundGen.playExplosion(); // 爆炸音效
+        SoundGen.playExplosion();
         const light = new THREE.PointLight(0xffaa00, 5, 20);
         light.position.copy(point);
         light.position.y += 1;
@@ -967,7 +1056,7 @@
             if (enemy.userData.hp <= 0) {
                 if (STATE.bossLives > 0) {
                     STATE.bossLives--;
-                    SoundGen.playBossScream(); // 復活吼叫
+                    SoundGen.playBossLaugh();
                     document.getElementById('boss-lives').innerText = `LIVES: ${STATE.bossLives}`;
                     enemy.userData.hp = enemy.userData.maxHp;
                     document.getElementById('boss-hp-bar').style.width = '100%';
@@ -1006,7 +1095,7 @@
             setTimeout(() => {
                 enemy.traverse((child) => {
                     if(child.isMesh && child.material && child.material.emissive) {
-                        child.material.emissive.setHex(enemy.userData.isBoss ? 0x330000 : 0x000000);
+                        child.material.emissive.setHex(enemy.userData.isBoss ? 0x330000 : (enemy.userData.isHighTier ? 0xaa0000 : 0x000000));
                     }
                 });
             }, 50);
@@ -1087,6 +1176,9 @@
             wingR.rotation.y = flap;
         }
 
+        // Boss 隨機大笑
+        if (Math.random() < 0.005) SoundGen.playBossLaugh();
+
         boss.userData.attackCooldown -= delta;
         if (boss.userData.attackCooldown <= 0) {
             const baseCD = 2.0;
@@ -1155,7 +1247,11 @@
             enemy.translateZ(enemy.userData.speed * delta);
 
             if (enemy.userData.isBoss) updateBoss(enemy, delta);
-            else SoundGen.playZombieGroan(); // 殭屍隨機叫聲
+            else {
+                // 高階殭屍隨機奸笑
+                if (enemy.userData.isHighTier && Math.random() < 0.01) SoundGen.playEvilLaugh();
+                else SoundGen.playZombieGroan(); 
+            }
 
             const dist = enemy.position.distanceTo(playerBody.position);
             if (dist < (enemy.userData.isBoss ? 3.0 : 2.0)) {
@@ -1204,9 +1300,11 @@
             if (STATE.bossInvincible && voidMoon) {
                 const distToMoon = p.position.distanceTo(voidMoon.position);
                 if (distToMoon < 25.0) {
+                    // 觸發終局：無月覺醒
                     STATE.bossInvincible = false;
                     STATE.truePowerUnlocked = true;
-                    SoundGen.playExplosion(); // 虛空之月爆炸
+                    SoundGen.playExplosion(); 
+                    SoundGen.playBlackMoonSound(); // 覺醒音效
                     
                     scene.remove(voidMoon);
                     voidMoon = null;
@@ -1214,9 +1312,16 @@
                     explosion.position.set(0, 100, -200);
                     scene.add(explosion);
                     
-                    document.getElementById('mission-hint').innerText = "真·月牙之力已覺醒！\n斬殺惡魔！";
+                    // 切換武器為近戰黑月
+                    inventory = [WEAPON_DEFS.black_moon];
+                    STATE.currentSlot = 0;
+                    const slots = document.getElementById('weapon-slots');
+                    slots.innerHTML = `<div class="slot active" id="slot-0"><span>∞</span><div class="w-name" style="color:#000; text-shadow:0 0 5px #fff">FINAL<br>MOON</div></div>`;
+                    switchSlot(0);
+
+                    document.getElementById('mission-hint').innerHTML = "月牙天衝已破碎...<br>以「最後的月牙」近身斬殺惡魔！";
                     document.getElementById('mission-hint').style.color = "#ff0000";
-                    document.getElementById('boss-hp-bar').style.background = "#ff0000";
+                    document.getElementById('boss-hp-bar').style.background = "#000000";
                     
                     scene.remove(p);
                     playerProjectiles.splice(i, 1);
