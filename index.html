@@ -3,35 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Night Survival: Boss Fight Balanced</title>
+    <title>Forest Night: Reforged (VFX Update)</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Arial', sans-serif; user-select: none; }
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Segoe UI', Arial, sans-serif; user-select: none; }
         
-        /* UI 層 */
         #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
         
-        /* 受傷血腥特效 */
         #damage-vignette {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             box-shadow: inset 0 0 150px rgba(255, 0, 0, 0.9);
             opacity: 0; transition: opacity 0.1s; pointer-events: none; z-index: 10;
             mix-blend-mode: overlay;
         }
-
-        /* 偷襲警告 */
-        #danger-warning {
-            position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%);
-            font-size: 40px; color: #ff0000; font-weight: 900; text-shadow: 2px 2px 0 #000;
-            display: none; animation: shake 0.2s infinite; z-index: 20;
+        
+        /* 劇情黑幕 */
+        #story-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; opacity: 0; pointer-events: none; z-index: 300;
+            transition: opacity 2s; display: flex; justify-content: center; align-items: center;
+            flex-direction: column;
+        }
+        
+        #story-text {
+            color: #fff; font-size: 32px; font-weight: bold; opacity: 0; transition: opacity 1s; text-align: center; line-height: 1.5;
+            text-shadow: 0 0 10px #fff;
         }
 
-        @keyframes shake {
-            0% { transform: translate(-52%, -50%); }
-            50% { transform: translate(-48%, -50%); }
-            100% { transform: translate(-52%, -50%); }
-        }
-
-        /* 準心 */
         #crosshair {
             position: absolute; top: 50%; left: 50%; width: 24px; height: 24px;
             transform: translate(-50%, -50%); transition: 0.1s; z-index: 5;
@@ -41,31 +38,27 @@
         #crosshair::after { top: 0; left: 11px; width: 2px; height: 24px; }
         .recoil #crosshair { transform: translate(-50%, -50%) scale(1.5); opacity: 0.5; }
 
-        /* BOSS 血條 */
         #boss-bar-container {
             position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
-            width: 70%; height: 30px; background: rgba(0,0,0,0.8); border: 2px solid #500;
-            display: none;
+            width: 60%; height: 25px; background: rgba(0,0,0,0.8); border: 2px solid #500;
+            display: none; border-radius: 12px; overflow: hidden;
             box-shadow: 0 0 20px #f00;
         }
-        #boss-hp-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #ff0000, #880000); transition: width 0.2s; }
-        #boss-label { position: absolute; top: -25px; left: 0; color: #f00; font-weight: bold; text-shadow: 1px 1px 0 #000; letter-spacing: 2px; font-size: 20px; display: flex; justify-content: space-between; width: 100%; }
+        #boss-hp-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #ff0000, #880000); transition: width 0.1s; }
+        #boss-label { position: absolute; top: -25px; left: 0; color: #f00; font-weight: bold; text-shadow: 1px 1px 0 #000; letter-spacing: 2px; font-size: 18px; display: flex; justify-content: space-between; width: 100%; }
 
-        /* 底部資訊欄 */
         #hud-bottom { position: absolute; bottom: 30px; left: 30px; display: flex; gap: 30px; color: #fff; text-shadow: 2px 2px 0 #000; }
         .hud-box { display: flex; flex-direction: column; }
         .hud-label { font-size: 12px; color: #aaa; font-weight: bold; text-transform: uppercase; }
         .hud-value { font-size: 32px; font-weight: 900; letter-spacing: 1px; }
         .c-green { color: #0f0; } .c-yellow { color: #ffcc00; } .c-blue { color: #00ccff; }
 
-        /* 武器欄 */
         #weapon-slots { position: absolute; bottom: 30px; right: 30px; display: flex; gap: 10px; }
-        .slot { width: 70px; height: 70px; background: rgba(0,0,0,0.6); border: 2px solid #333; color: #555; display: flex; flex-direction: column; justify-content: center; align-items: center; font-weight: bold; transition: 0.2s; position: relative; }
+        .slot { width: 70px; height: 70px; background: rgba(0,0,0,0.6); border: 2px solid #333; color: #555; display: flex; flex-direction: column; justify-content: center; align-items: center; font-weight: bold; transition: 0.2s; position: relative; border-radius: 5px; }
         .slot.active { border-color: #0f0; color: #fff; background: rgba(0, 255, 0, 0.1); transform: scale(1.1); box-shadow: 0 0 15px rgba(0,255,0,0.3); }
         .slot span { font-size: 10px; position: absolute; top: 2px; left: 4px; }
         .w-name { font-size: 12px; text-align: center; }
 
-        /* 波數與劇情提示 */
         #wave-announce {
             position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%);
             font-size: 60px; color: #ff0000; font-weight: 900; text-shadow: 0 0 20px #f00;
@@ -73,42 +66,44 @@
             white-space: pre-line;
         }
         
-        /* 任務提示 (鎖血時顯示) */
         #mission-hint {
             position: absolute; top: 15%; left: 50%; transform: translate(-50%, -50%);
             font-size: 24px; color: #00ffff; font-weight: bold; text-shadow: 0 0 10px #00f;
-            text-align: center; display: none; animation: pulse 2s infinite;
+            text-align: center; display: none; animation: pulse 2s infinite; width: 100%;
+        }
+
+        #flight-controls {
+            position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%);
+            color: #fff; text-align: center; display: none; font-weight: bold; text-shadow: 0 0 5px #000;
         }
 
         @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
 
-        /* 二階段特效覆蓋層 */
-        #phase2-flash {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: white; opacity: 0; pointer-events: none; transition: opacity 2s;
-            z-index: 50;
-        }
-
-        /* 商店介面 */
         #shop-menu {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 600px; background: rgba(10, 10, 15, 0.95); border: 2px solid #ffcc00;
+            width: 600px; background: rgba(15, 20, 15, 0.95); border: 2px solid #ffcc00;
             padding: 20px; display: none; flex-direction: column; color: #fff; pointer-events: auto; z-index: 200;
-            box-shadow: 0 0 50px rgba(255, 204, 0, 0.2);
+            box-shadow: 0 0 50px rgba(255, 204, 0, 0.2); border-radius: 10px;
         }
         #shop-menu h2 { margin: 0 0 20px 0; color: #ffcc00; text-align: center; text-transform: uppercase; border-bottom: 1px solid #444; padding-bottom: 10px; }
         .shop-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        .shop-item { background: #222; padding: 10px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #444; cursor: pointer; transition: 0.2s; }
+        .shop-item { background: #222; padding: 10px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #444; cursor: pointer; transition: 0.2s; border-radius: 5px; }
         .shop-item:hover { background: #333; border-color: #ffcc00; }
-        .shop-item button { background: #ffcc00; border: none; padding: 5px 10px; font-weight: bold; cursor: pointer; color: #000; }
+        .shop-item button { background: #ffcc00; border: none; padding: 5px 10px; font-weight: bold; cursor: pointer; color: #000; border-radius: 3px; }
         .shop-item button:disabled { background: #555; color: #888; cursor: not-allowed; }
-        .close-shop { margin-top: 20px; padding: 10px; background: #c00; color: #fff; border: none; font-weight: bold; cursor: pointer; }
+        .close-shop { margin-top: 20px; padding: 10px; background: #c00; color: #fff; border: none; font-weight: bold; cursor: pointer; border-radius: 5px; }
 
-        /* 開始菜單 */
-        #menu { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; flex-direction: column; justify-content: center; align-items: center; color: #fff; z-index: 100; }
-        h1 { color: #f00; font-size: 60px; margin: 0 0 10px 0; text-transform: uppercase; letter-spacing: 5px; text-shadow: 0 0 10px #f00; }
+        #menu, #death-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(5, 13, 26, 0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; color: #fff; z-index: 100; }
+        #death-screen { display: none; background: rgba(50, 0, 0, 0.9); z-index: 400; }
+        h1 { color: #0f0; font-size: 60px; margin: 0 0 10px 0; text-transform: uppercase; letter-spacing: 5px; text-shadow: 0 0 10px #0f0; }
         .controls { text-align: left; background: rgba(255,255,255,0.1); padding: 20px; border-radius: 8px; margin-bottom: 20px; }
         .key { display: inline-block; background: #333; padding: 2px 6px; border-radius: 4px; border: 1px solid #666; color: #ffcc00; font-weight: bold; margin: 0 2px; }
+        
+        .btn-restart {
+            padding: 15px 40px; font-size: 24px; background: #e74c3c; border: 2px solid #fff; color: white;
+            cursor: pointer; text-transform: uppercase; font-weight: bold; transition: 0.2s;
+        }
+        .btn-restart:hover { background: #c0392b; transform: scale(1.05); }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
@@ -116,20 +111,21 @@
 
     <div id="ui-layer">
         <div id="damage-vignette"></div>
-        <div id="danger-warning">⚠️ BEHIND YOU! ⚠️</div>
+        <div id="story-overlay">
+            <div id="story-text"></div>
+        </div>
         <div id="crosshair"></div>
-        <div id="phase2-flash"></div>
         
         <div id="boss-bar-container">
             <div id="boss-label">
-                <span>⚠️ DEMON LORD ⚠️</span>
-                <span id="boss-lives">LIVES: 3</span>
+                <span id="boss-name">ABYSS DEMON</span>
             </div>
             <div id="boss-hp-bar"></div>
         </div>
 
         <div id="wave-announce">WAVE 1</div>
-        <div id="mission-hint">BOSS 已進入虛空無敵狀態！<br>向空中的「虛空之月」發射月牙天衝！</div>
+        <div id="mission-hint"></div>
+        <div id="flight-controls">SPACE: 上升 | SHIFT: 下降 | WASD: 飛行</div>
 
         <div id="hud-bottom">
             <div class="hud-box"><span class="hud-label">HEALTH</span><span class="hud-value c-green" id="hp-val">100</span></div>
@@ -140,14 +136,13 @@
 
         <div id="weapon-slots">
             <div class="slot active" id="slot-0"><span>1</span><div class="w-name" id="name-0">AK-47</div></div>
-            <div class="slot" id="slot-1"><span>2</span><div class="w-name">PISTOL</div></div>
+            <div class="slot" id="slot-1"><span>2</span><div class="w-name">LASER<br>PISTOL</div></div>
             <div class="slot" id="slot-2"><span>3</span><div class="w-name">AXE</div></div>
         </div>
     </div>
 
-    <!-- 商店 -->
     <div id="shop-menu">
-        <h2>Black Market</h2>
+        <h2>Supply Crate</h2>
         <div class="shop-grid">
             <div class="shop-item">
                 <div>
@@ -182,24 +177,45 @@
     </div>
 
     <div id="menu">
-        <h1>NIGHT SURVIVAL</h1>
+        <h1>FOREST NIGHT</h1>
         <div class="controls">
-            <p><span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span> 移動</p>
-            <p><span class="key">按住左鍵</span> 攻擊 (擊退BOSS)</p>
+            <p><span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span> 移動 <span class="key">SHIFT</span> 加速/高跳</p>
+            <p><span class="key">左鍵</span> 射擊/攻擊</p>
+            <p><span class="key">右鍵</span> 武器特殊技能 (斧頭旋風/手槍無效)</p>
             <p><span class="key">1</span><span class="key">2</span><span class="key">3</span> 切換武器</p>
             <p><span class="key">B</span> 商店</p>
         </div>
-        <p style="margin-top: 30px; font-size: 20px; color: #aaa;">點擊畫面開始</p>
+        <p style="margin-top: 30px; font-size: 20px; color: #aaa;">點擊畫面開始生存</p>
+    </div>
+
+    <div id="death-screen">
+        <h1 style="color: #e74c3c;">你死了</h1>
+        <p style="margin-bottom: 30px; font-size: 24px;">森林吞噬了你的靈魂...</p>
+        <button class="btn-restart" onclick="restartCurrentStage()">重新開始本階段</button>
     </div>
 
 <script>
     // --- 遊戲參數 ---
     const CONFIG = {
-        walkSpeed: 24.0,  
+        walkSpeed: 24.0,
+        runSpeed: 40.0, // Shift 加速
+        flySpeed: 40.0,
         jumpForce: 15.0,
+        highJump: 28.0, // Shift 高跳，可以上樹
         gravity: 30.0,
         mouseSensitivity: 0.002,
         friction: 8.0
+    };
+
+    // 遊戲階段狀態機
+    const STAGE = {
+        FOREST: 0,
+        SPACE_COMBAT_1: 1,      // 宇宙戰第一階段：遠程月牙 vs 普通BOSS
+        CHEST_TRAP: 2,          // 陷阱：BOSS倒下，出現寶箱
+        SPACE_BOSS_INVINCIBLE: 3, // BOSS復活，紫色無敵，玩家必死
+        GOD_INTERVENTION: 4,    // 黑畫面，月神對話
+        ATTACK_MOON: 5,         // 玩家復活，需要攻擊月亮
+        FINAL_COMBAT: 6         // 獲得最終月牙，決戰
     };
 
     const STATE = {
@@ -218,44 +234,50 @@
         isFiring: false,
         phase2: false,
         bossRef: null,
-        bossLives: 3,
-        bossInvincible: false,
-        truePowerUnlocked: false,
-        shakeIntensity: 0,
-        lastDamageTime: 0 // 新增：受傷冷卻時間
+        chestRef: null,
+        canFly: false,
+        currentStage: STAGE.FOREST,
+        lastDamageTime: 0
     };
 
     const WEAPON_DEFS = {
         ak:   { name: "AK-47",  damage: 35,   rate: 180,  range: 100, type: 'hitscan', color: 0xffaa00, model: 'rifle', knockback: 0.8 },
         m249: { name: "M249",   damage: 25,   rate: 60,   range: 100, type: 'hitscan', color: 0x00ff00, model: 'm249', knockback: 0.6 },
         rpg:  { name: "RPG",    damage: 800,  rate: 1200, range: 200, type: 'explosive', color: 0xff0000, model: 'rpg', knockback: 5.0 },
-        pistol:{ name: "Pistol",damage: 20,   rate: 300,  range: 60,  type: 'hitscan', color: 0xcccccc, model: 'pistol', knockback: 0.5 },
-        axe:  { name: "Axe",    damage: 150,  rate: 600,  range: 4,   type: 'melee',   color: 0xffffff, model: 'axe', knockback: 3.0 },
-        moon: { name: "MOON BLADE", damage: 1500, rate: 600, range: 200, type: 'projectile', color: 0x00ffff, model: 'moon', knockback: 0 }
+        pistol:{ name: "LASER PISTOL",damage: 15,   rate: 400,  range: 50,  type: 'laser', color: 0x00ffff, model: 'pistol', knockback: 8.0 }, 
+        axe:  { name: "Axe",    damage: 150,  rate: 600,  range: 5,   type: 'melee',   color: 0xffffff, model: 'axe', knockback: 3.0 },
+        // [FIX] 月牙天衝速度加快 (40 -> 100)
+        moon: { name: "MOON BLADE", damage: 150, rate: 800, range: 200, type: 'projectile', color: 0x00ffff, model: 'moon', knockback: 40.0 }, 
+        final_moon: { name: "FINAL TENSA", damage: 1000, rate: 300, range: 10, type: 'melee', color: 0x000000, model: 'final_moon', knockback: 100.0 }
     };
 
     let inventory = [WEAPON_DEFS.ak, WEAPON_DEFS.pistol, WEAPON_DEFS.axe];
 
     // --- Three.js 初始化 ---
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x101018); 
-    scene.fog = new THREE.FogExp2(0x101018, 0.015);
+    const FOG_COLOR = 0x050d1a;
+    scene.background = new THREE.Color(FOG_COLOR); 
+    scene.fog = new THREE.FogExp2(FOG_COLOR, 0.02);
 
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     document.body.appendChild(renderer.domElement);
 
     // --- 燈光 ---
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    const ambientLight = new THREE.HemisphereLight(0x444455, 0x111122, 0.6);
     scene.add(ambientLight);
-    const moonLight = new THREE.DirectionalLight(0x6666ff, 0.8);
+    
+    const moonLight = new THREE.DirectionalLight(0xaaccff, 0.8);
     moonLight.position.set(50, 100, 50);
     moonLight.castShadow = true;
+    moonLight.shadow.mapSize.width = 2048;
+    moonLight.shadow.mapSize.height = 2048;
     scene.add(moonLight);
 
-    const flashLight = new THREE.SpotLight(0xffffee, 1.2, 60, Math.PI/6, 0.5, 1);
+    const flashLight = new THREE.SpotLight(0xffffee, 1.5, 80, Math.PI/5, 0.5, 1);
     camera.add(flashLight);
     camera.add(flashLight.target);
     flashLight.target.position.set(0, 0, -1);
@@ -272,25 +294,25 @@
 
     const models = {};
 
-    // 基礎武器模型
+    // 武器模型構建
     const gRifle = new THREE.Group();
-    gRifle.add(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 1), new THREE.MeshStandardMaterial({color:0x8B4513})));
+    gRifle.add(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 1), new THREE.MeshStandardMaterial({color:0x5c4033})));
     gRifle.add(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 1.2), new THREE.MeshStandardMaterial({color:0x111111})).translateZ(-0.2));
     models['rifle'] = gRifle; weaponContainer.add(gRifle);
 
-    const gM249 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 1.0), new THREE.MeshStandardMaterial({color:0x333333}));
+    const gM249 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 1.0), new THREE.MeshStandardMaterial({color:0x222222}));
     models['m249'] = gM249; weaponContainer.add(gM249);
 
-    const gRPG = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.5, 8), new THREE.MeshStandardMaterial({color:0x556B2F}));
+    const gRPG = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.5, 8), new THREE.MeshStandardMaterial({color:0x4a5d23}));
     gRPG.rotation.x = Math.PI/2;
     models['rpg'] = gRPG; weaponContainer.add(gRPG);
 
     const gPistol = new THREE.Group();
-    gPistol.add(new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.1, 0.4), new THREE.MeshStandardMaterial({color:0x888})));
+    gPistol.add(new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.1, 0.4), new THREE.MeshStandardMaterial({color:0x00ffff, emissive: 0x004444}))); 
     models['pistol'] = gPistol; weaponContainer.add(gPistol);
 
     const gAxe = new THREE.Group();
-    const axeHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.2), new THREE.MeshStandardMaterial({color:0x8B4513}));
+    const axeHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.2), new THREE.MeshStandardMaterial({color:0x5c4033}));
     axeHandle.rotation.x = Math.PI/2; axeHandle.position.z = 0.2;
     const axeBlade = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.05, 0.3), new THREE.MeshStandardMaterial({color:0xCCCCCC}));
     axeBlade.position.z = -0.4; axeBlade.rotation.y = Math.PI/4;
@@ -298,61 +320,88 @@
     gAxe.position.set(-0.2, 0, 0); 
     models['axe'] = gAxe; weaponContainer.add(gAxe);
 
-    // --- 月牙之刃 ---
+    // --- 月牙之刃 (藍色) ---
     const gMoon = new THREE.Group();
     const moonGeo = new THREE.RingGeometry(0.3, 0.5, 32, 1, 0, Math.PI * 1.2);
-    const moonMat = new THREE.MeshStandardMaterial({ 
-        color: 0x00ffff, 
-        emissive: 0x00ffff, 
-        emissiveIntensity: 2.0,
-        side: THREE.DoubleSide
-    });
+    const moonMat = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 2.0, side: THREE.DoubleSide });
     const moonMesh = new THREE.Mesh(moonGeo, moonMat);
-    moonMesh.position.set(0, 0, -0.5);
-    moonMesh.rotation.z = Math.PI / 4;
-    
+    moonMesh.position.set(0, 0, -0.5); moonMesh.rotation.z = Math.PI / 4;
     const moonHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.8), new THREE.MeshStandardMaterial({color:0xffffff}));
-    moonHandle.rotation.x = Math.PI/2;
-    moonHandle.position.set(0.1, -0.2, 0);
-
-    gMoon.add(moonMesh);
-    gMoon.add(moonHandle);
+    moonHandle.rotation.x = Math.PI/2; moonHandle.position.set(0.1, -0.2, 0);
+    gMoon.add(moonMesh); gMoon.add(moonHandle);
     gMoon.position.set(-0.2, -0.1, 0);
     models['moon'] = gMoon; weaponContainer.add(gMoon);
 
-    // --- 地圖 ---
-    const matFloor = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.8 });
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(300, 300), matFloor);
+    // --- 最終月牙 (黑色) ---
+    const gFinalMoon = gMoon.clone();
+    gFinalMoon.children[0].material = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0x222222, emissiveIntensity: 1.0, side: THREE.DoubleSide });
+    gFinalMoon.children[1].material = new THREE.MeshStandardMaterial({ color: 0x333333 });
+    const auraGeo = new THREE.RingGeometry(0.5, 0.6, 32);
+    const auraMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.5, side: THREE.DoubleSide });
+    const aura = new THREE.Mesh(auraGeo, auraMat);
+    aura.position.set(0,0,-0.5);
+    gFinalMoon.add(aura);
+    models['final_moon'] = gFinalMoon; weaponContainer.add(gFinalMoon);
+
+    // --- 地圖與森林生成 ---
+    const matFloor = new THREE.MeshStandardMaterial({ color: 0x1b2e1b, roughness: 1.0 });
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), matFloor);
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
     scene.add(floor);
 
-    let obstacles = [];
-    const matBox = new THREE.MeshStandardMaterial({ color: 0x444444 });
+    let obstacles = []; 
+    let forestGroup = new THREE.Group(); 
+    let torches = [];
+    scene.add(forestGroup);
+
+    function createTree(x, z) {
+        const treeGroup = new THREE.Group();
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.6, 5, 7), new THREE.MeshStandardMaterial({ color: 0x3d2817 }));
+        trunk.position.y = 2.5; trunk.castShadow = true; trunk.receiveShadow = true;
+        const leaves = new THREE.Mesh(new THREE.ConeGeometry(3.5, 8, 8), new THREE.MeshStandardMaterial({ color: 0x0d2b12 }));
+        leaves.position.y = 8; leaves.castShadow = true;
+        treeGroup.add(trunk); treeGroup.add(leaves);
+
+        // 添加火炬
+        if (Math.random() < 0.4) {
+            const torchStick = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.5, 0.1), new THREE.MeshStandardMaterial({color: 0x553311}));
+            torchStick.position.set(0.5, 3, 0);
+            torchStick.rotation.z = -0.5;
+            treeGroup.add(torchStick);
+            
+            const fireLight = new THREE.PointLight(0xff4400, 1, 15);
+            fireLight.position.set(0.7, 3.3, 0);
+            treeGroup.add(fireLight);
+            torches.push({ light: fireLight, baseIntensity: 1.0, speed: Math.random() * 5 + 5 });
+        }
+
+        treeGroup.position.set(x, 0, z);
+        forestGroup.add(treeGroup);
+        
+        const collider = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 5), new THREE.MeshBasicMaterial({visible: false}));
+        collider.position.set(x, 2.5, z);
+        collider.userData = { isTree: true, height: 5 }; 
+        obstacles.push(collider);
+        forestGroup.add(collider);
+    }
+
     function createMap() {
-        for(let i=0; i<50; i++) {
-            const h = Math.random() * 6 + 2;
-            const mesh = new THREE.Mesh(new THREE.BoxGeometry(3, h, 3), matBox);
-            mesh.position.set((Math.random()-0.5)*160, h/2, (Math.random()-0.5)*160);
-            if (mesh.position.length() < 20) continue;
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
-            scene.add(mesh);
-            obstacles.push(mesh);
+        for(let i=0; i<250; i++) {
+            const x = (Math.random() - 0.5) * 350;
+            const z = (Math.random() - 0.5) * 350;
+            if (Math.abs(x) < 15 && Math.abs(z) < 15) continue;
+            createTree(x, z);
         }
     }
     createMap();
 
-    // 宇宙星空與月亮
+    // 宇宙星空
     const starsGeometry = new THREE.BufferGeometry();
-    const starsCount = 2000;
-    const posArray = new Float32Array(starsCount * 3);
-    for(let i = 0; i < starsCount * 3; i++) {
-        posArray[i] = (Math.random() - 0.5) * 600;
-    }
+    const posArray = new Float32Array(3000 * 3);
+    for(let i = 0; i < 3000 * 3; i++) posArray[i] = (Math.random() - 0.5) * 800;
     starsGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-    const starsMaterial = new THREE.PointsMaterial({size: 0.8, color: 0xffffff});
-    const starField = new THREE.Points(starsGeometry, starsMaterial);
+    const starField = new THREE.Points(starsGeometry, new THREE.PointsMaterial({size: 0.7, color: 0xffffff}));
     starField.visible = false;
     scene.add(starField);
 
@@ -362,68 +411,86 @@
     let enemies = [];
     let bossProjectiles = [];
     let playerProjectiles = [];
+    let effects = []; // 存放特效物件 (子彈軌跡, 煙霧等)
     
-    const matZombieGreen = new THREE.MeshStandardMaterial({ color: 0x55aa55 });
-    const matBossRed = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0x330000 });
-    const matWing = new THREE.MeshStandardMaterial({ color: 0x220000, side: THREE.DoubleSide });
+    const matZombieSkin = new THREE.MeshStandardMaterial({ color: 0x2e8b57, roughness: 0.8 });
+    const matEliteSkin = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.2 });
+    const matZombieClothes = new THREE.MeshStandardMaterial({ color: 0x222222 });
+    const matBossSkin = new THREE.MeshStandardMaterial({ color: 0x1a0505, roughness: 0.4 });
+    const matBossGlow = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 2 });
+    // [FIX] 所有殭屍眼睛都發光紅色
+    const matRedEye = new THREE.MeshBasicMaterial({ color: 0xff0000 });
 
-    function spawnEnemy(isBoss = false) {
-        if (STATE.phase2 && !isBoss) return; 
+    function spawnEnemy(isBoss = false, isElite = false) {
+        if (STATE.phase2 && !isBoss) return;
 
         const enemyGroup = new THREE.Group();
-        const scale = isBoss ? 3.5 : 1.0;
+        const scale = isBoss ? 4.0 : 1.0;
         
-        const bodyMat = isBoss ? matBossRed.clone() : matZombieGreen;
-        const bodyMesh = new THREE.Mesh(new THREE.BoxGeometry(0.6*scale, 1.0*scale, 0.4*scale), bodyMat);
-        bodyMesh.position.y = (1.0*scale) / 2;
+        const skinMat = isElite ? matEliteSkin.clone() : (isBoss ? matBossSkin.clone() : matZombieSkin.clone());
+        const clothesMat = isElite ? matEliteSkin.clone() : (isBoss ? matBossSkin.clone() : matZombieClothes.clone());
+        const eyeMat = isBoss ? matBossGlow.clone() : matRedEye.clone();
+
+        const bodyMesh = new THREE.Mesh(new THREE.BoxGeometry(0.6*scale, 0.9*scale, 0.3*scale), clothesMat);
+        bodyMesh.position.y = (0.9*scale) / 2 + (0.5*scale);
         bodyMesh.castShadow = true;
         enemyGroup.add(bodyMesh);
 
         const headGroup = new THREE.Group();
-        headGroup.position.y = (1.0*scale) + (0.3*scale);
-        const skullMesh = new THREE.Mesh(new THREE.BoxGeometry(0.6*scale, 0.6*scale, 0.6*scale), bodyMat);
-        headGroup.add(skullMesh);
+        headGroup.position.y = (1.4*scale);
+        const headMesh = new THREE.Mesh(new THREE.BoxGeometry(0.5*scale, 0.5*scale, 0.5*scale), skinMat);
+        headGroup.add(headMesh);
         
-        const eyeMat = new THREE.MeshStandardMaterial({ color: isBoss ? 0xffff00 : 0xffffff, emissive: isBoss ? 0xff0000 : 0x000000 });
-        const leftEye = new THREE.Mesh(new THREE.BoxGeometry(0.15*scale, 0.15*scale, 0.05), eyeMat);
-        leftEye.position.set(-0.15*scale, 0.1*scale, 0.31*scale);
+        const leftEye = new THREE.Mesh(new THREE.BoxGeometry(0.1*scale, 0.1*scale, 0.05), eyeMat);
+        leftEye.position.set(-0.12*scale, 0.05*scale, 0.26*scale);
         headGroup.add(leftEye);
-        const rightEye = new THREE.Mesh(new THREE.BoxGeometry(0.15*scale, 0.15*scale, 0.05), eyeMat);
-        rightEye.position.set(0.15*scale, 0.1*scale, 0.31*scale);
+        const rightEye = new THREE.Mesh(new THREE.BoxGeometry(0.1*scale, 0.1*scale, 0.05), eyeMat);
+        rightEye.position.set(0.12*scale, 0.05*scale, 0.26*scale);
         headGroup.add(rightEye);
-
         enemyGroup.add(headGroup);
 
         if (isBoss) {
-            const wingGeo = new THREE.BoxGeometry(1.5*scale, 0.8*scale, 0.1*scale);
-            const leftWing = new THREE.Mesh(wingGeo, matWing);
-            leftWing.position.set(-0.8*scale, 0.8*scale, -0.3*scale);
-            leftWing.rotation.z = 0.2;
-            leftWing.name = "wingL";
-            enemyGroup.add(leftWing);
-
-            const rightWing = new THREE.Mesh(wingGeo, matWing);
-            rightWing.position.set(0.8*scale, 0.8*scale, -0.3*scale);
-            rightWing.rotation.z = -0.2;
-            rightWing.name = "wingR";
-            enemyGroup.add(rightWing);
-            
+            const wingGeo = new THREE.BoxGeometry(1.8*scale, 0.8*scale, 0.1*scale);
+            const wingMat = new THREE.MeshStandardMaterial({ color: 0x330000, side: THREE.DoubleSide });
+            const leftWing = new THREE.Mesh(wingGeo, wingMat);
+            leftWing.position.set(-1.0*scale, 1.5*scale, -0.3*scale); leftWing.rotation.z = 0.4; leftWing.name = "wingL";
+            const rightWing = new THREE.Mesh(wingGeo, wingMat);
+            rightWing.position.set(1.0*scale, 1.5*scale, -0.3*scale); rightWing.rotation.z = -0.4; rightWing.name = "wingR";
+            enemyGroup.add(leftWing, rightWing);
             STATE.bossRef = enemyGroup;
+        } else {
+            const armGeo = new THREE.BoxGeometry(0.15*scale, 0.7*scale, 0.15*scale);
+            const lArm = new THREE.Mesh(armGeo, skinMat);
+            lArm.position.set(-0.35*scale, 1.2*scale, 0.3*scale); lArm.rotation.x = -Math.PI/2; lArm.rotation.z = 0.1;
+            const rArm = new THREE.Mesh(armGeo, skinMat);
+            rArm.position.set(0.35*scale, 1.2*scale, 0.3*scale); rArm.rotation.x = -Math.PI/2; rArm.rotation.z = -0.1;
+            enemyGroup.add(lArm, rArm);
         }
 
         const angle = Math.random() * Math.PI * 2;
         const dist = isBoss ? 60 : (30 + Math.random() * 40);
         enemyGroup.position.set(Math.sin(angle)*dist, 0, Math.cos(angle)*dist);
 
-        // 平衡調整：BOSS 速度降低，傷害降低
+        const collider = new THREE.Mesh(new THREE.CylinderGeometry(0.5*scale, 0.5*scale, 2*scale), new THREE.MeshBasicMaterial({visible:false}));
+        collider.position.y = scale;
+        enemyGroup.add(collider);
+        enemyGroup.collider = collider; 
+
+        let baseSpeed = 3.0 + Math.random() * 4;
+        let finalSpeed = isBoss ? 6.0 : (isElite ? CONFIG.walkSpeed : baseSpeed * 1.4);
+
         enemyGroup.userData = {
-            hp: isBoss ? 10000 : 100, 
-            maxHp: isBoss ? 10000 : 100,
-            speed: isBoss ? 4.0 : (3.0 + Math.random() * 4), // Boss 速度從 6.0 降至 4.0
-            damage: isBoss ? 15 : 5, // Boss 傷害從 25 降至 15
+            hp: isBoss ? 15000 : (isElite ? 300 : 100), 
+            maxHp: isBoss ? 15000 : (isElite ? 300 : 100),
+            speed: finalSpeed,
+            damage: isBoss ? 20 : (isElite ? 15 : 5),
             isBoss: isBoss,
-            score: isBoss ? 50000 : 100,
-            attackCooldown: 0
+            isElite: isElite,
+            score: isBoss ? 50000 : (isElite ? 500 : 100),
+            attackCooldown: 0,
+            velocity: new THREE.Vector3(),
+            isDead: false,
+            baseEmissive: isBoss ? 0xff0000 : 0x000000 
         };
 
         scene.add(enemyGroup);
@@ -443,31 +510,24 @@
             spawnEnemy(true);
             STATE.bossActive = true;
             document.getElementById('boss-bar-container').style.display = 'block';
-            for(let i=0; i<30; i++) spawnEnemy();
+            for(let i=0; i<100; i++) spawnEnemy(false, true);
         } else {
             let count = waveNum === 1 ? 10 : 25;
-            for(let i=0; i<count; i++) spawnEnemy();
+            for(let i=0; i<count; i++) {
+                let isElite = (waveNum >= 2 && Math.random() < 0.5);
+                spawnEnemy(false, isElite);
+            }
         }
     }
 
-    // --- 二階段轉場 ---
     function enterPhaseTwo() {
         if (STATE.phase2) return;
         STATE.phase2 = true;
-
-        STATE.hp = 100;
-        STATE.armor = 100;
-        updateHUD();
-
-        const flash = document.getElementById('phase2-flash');
-        flash.style.opacity = 1;
-        setTimeout(() => flash.style.opacity = 0, 2000);
+        STATE.currentStage = STAGE.SPACE_COMBAT_1;
 
         const announce = document.getElementById('wave-announce');
-        announce.innerText = "VOID REALM\n(HP/ARMOR RESTORED)";
-        announce.style.opacity = 1;
-        announce.style.color = "#00ffff";
-        announce.style.textShadow = "0 0 20px #00ffff";
+        announce.innerText = "VOID REALM";
+        announce.style.opacity = 1; announce.style.color = "#00ffff";
         setTimeout(() => announce.style.opacity = 0, 4000);
 
         for (let i = enemies.length - 1; i >= 0; i--) {
@@ -476,50 +536,151 @@
                 enemies.splice(i, 1);
             }
         }
+        STATE.enemiesRemaining = 0;
 
-        obstacles.forEach(obs => scene.remove(obs));
-        obstacles = [];
+        STATE.hp = 100; STATE.armor = 100; updateHUD();
+
+        const boss = STATE.bossRef;
+        boss.userData.maxHp = 7500; 
+        boss.userData.hp = boss.userData.maxHp; 
+        boss.userData.speed = CONFIG.flySpeed; 
+        boss.position.set(0, 10, -50); 
+        document.getElementById('boss-hp-bar').style.width = '100%';
+
+        forestGroup.visible = false;
+        obstacles = []; 
 
         scene.fog = new THREE.FogExp2(0x000000, 0.002);
         scene.background = new THREE.Color(0x000000);
         starField.visible = true;
-        
-        floor.material = new THREE.MeshBasicMaterial({ 
-            color: 0x0044aa, 
-            wireframe: true, 
-            transparent: true, 
-            opacity: 0.3 
-        });
+        floor.material = new THREE.MeshBasicMaterial({ color: 0x0044aa, wireframe: true, transparent: true, opacity: 0.3 });
 
-        const moonGeo = new THREE.SphereGeometry(20, 32, 32);
-        const moonMat = new THREE.MeshBasicMaterial({ color: 0xeeeeff });
-        voidMoon = new THREE.Mesh(moonGeo, moonMat);
-        voidMoon.position.set(0, 100, -200);
-        const glow = new THREE.PointLight(0xaaaaff, 2, 500);
-        voidMoon.add(glow);
-        scene.add(voidMoon);
+        if (!voidMoon) {
+            const moonGeo = new THREE.SphereGeometry(20, 32, 32);
+            const moonMat = new THREE.MeshBasicMaterial({ color: 0xeeeeff });
+            voidMoon = new THREE.Mesh(moonGeo, moonMat);
+            voidMoon.position.set(0, 100, -200);
+            voidMoon.add(new THREE.PointLight(0xaaaaff, 2, 500));
+            scene.add(voidMoon);
+        }
 
         inventory = [WEAPON_DEFS.moon];
         STATE.currentSlot = 0;
-        const slots = document.getElementById('weapon-slots');
-        slots.innerHTML = `<div class="slot active" id="slot-0"><span>∞</span><div class="w-name" style="color:#0ff; text-shadow:0 0 5px #0ff">MOON<br>BLADE</div></div>`;
+        document.getElementById('weapon-slots').innerHTML = `<div class="slot active" id="slot-0"><span>∞</span><div class="w-name" style="color:#0ff">MOON<br>BLADE</div></div>`;
         switchSlot(0);
         
-        alert("BOSS 吸收了所有靈魂！世界崩塌！\n你獲得了 [虛幻月牙之刃]\n按左鍵發射「月牙天衝」！");
+        alert("進入宇宙階段！BOSS 血量已調整。");
+    }
+
+    function spawnChestTrap() {
+        STATE.currentStage = STAGE.CHEST_TRAP;
+        const chestGeo = new THREE.BoxGeometry(2, 1.5, 1.5);
+        const chestMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.8, roughness: 0.2 });
+        const chest = new THREE.Mesh(chestGeo, chestMat);
+        chest.position.copy(STATE.bossRef.position).add(new THREE.Vector3(5, 0, 5));
+        chest.position.y = 0.75;
+        scene.add(chest);
+        STATE.chestRef = chest;
+        const hint = document.getElementById('mission-hint');
+        hint.style.display = 'block';
+        hint.innerText = "BOSS 已倒下。去撿起戰利品！";
+        hint.style.color = "#ffd700";
+    }
+
+    function triggerBossResurrection() {
+        if (!STATE.chestRef) return;
+        scene.remove(STATE.chestRef);
+        STATE.chestRef = null;
+        STATE.currentStage = STAGE.SPACE_BOSS_INVINCIBLE;
+        
+        const boss = STATE.bossRef;
+        boss.userData.isDead = false;
+        boss.rotation.x = 0; 
+        boss.position.y = 0;
+        boss.scale.set(1.5, 1.5, 1.5);
+        
+        boss.traverse((child) => {
+            if(child.isMesh) {
+                if (child.name === 'wingL' || child.name === 'wingR') {
+                    child.material.color.set(0x4b0082); 
+                } else if (child.material.emissive) {
+                    child.material.emissive.setHex(0x800080); 
+                    child.material.color.set(0x220022);
+                }
+            }
+        });
+        boss.userData.baseEmissive = 0x800080; 
+
+        boss.userData.maxHp *= 3;
+        boss.userData.hp = boss.userData.maxHp;
+        
+        document.getElementById('boss-hp-bar').style.width = '100%';
+        document.getElementById('boss-hp-bar').style.background = '#800080';
+        document.getElementById('mission-hint').innerText = "BOSS 復活了！它是無敵的！";
+        document.getElementById('mission-hint').style.color = "#ff0000";
+    }
+
+    function triggerScriptedDeath() {
+        STATE.currentStage = STAGE.GOD_INTERVENTION;
+        STATE.isPlaying = false;
+        document.exitPointerLock();
+        const overlay = document.getElementById('story-overlay');
+        const text = document.getElementById('story-text');
+        overlay.style.opacity = 1;
+        overlay.style.pointerEvents = 'auto';
+        setTimeout(() => { text.style.opacity = 1; text.innerText = "月神：凡人，你的力量無法觸及虛空..."; }, 1000);
+        setTimeout(() => { text.innerText = "月神：我將賜予你最後的月光之力。\n但你必須證明你的決心。"; }, 4000);
+        setTimeout(() => { text.innerText = "月神：甦醒吧！躲避惡魔的追擊，\n用你的月牙斬向天空的「虛空之月」！"; }, 7000);
+        setTimeout(() => {
+            // [FIX] 復活時補滿狀態
+            STATE.hp = 100;
+            STATE.armor = 100;
+            STATE.canFly = true;
+            STATE.currentStage = STAGE.ATTACK_MOON;
+            updateHUD();
+            overlay.style.opacity = 0;
+            overlay.style.pointerEvents = 'none';
+            document.body.requestPointerLock();
+            STATE.isPlaying = true;
+            const hint = document.getElementById('mission-hint');
+            hint.style.display = 'block';
+            hint.innerText = "任務：攻擊天上的虛空之月！";
+            hint.style.color = "#00ffff";
+            document.getElementById('flight-controls').style.display = 'block';
+        }, 10000);
+    }
+
+    function triggerFinalForm() {
+        STATE.currentStage = STAGE.FINAL_COMBAT;
+        scene.remove(voidMoon); voidMoon = null;
+        inventory = [WEAPON_DEFS.final_moon];
+        STATE.currentSlot = 0;
+        document.getElementById('weapon-slots').innerHTML = `<div class="slot active" id="slot-0"><span>∞</span><div class="w-name" style="color:#000; background:#fff; text-shadow:none;">FINAL<br>TENSA</div></div>`;
+        switchSlot(0);
+        document.getElementById('mission-hint').innerText = "真·月牙天衝已覺醒！\nBOSS 無敵已破除，斬殺他！";
+        document.getElementById('mission-hint').style.color = "#ff0000";
+        document.getElementById('boss-hp-bar').style.background = "#ff0000"; 
+        alert("獲得 [最終月牙] (近戰)！\n現在可以對 BOSS 造成傷害了！");
     }
 
     // --- 輸入控制 ---
-    const input = { w: false, a: false, s: false, d: false };
+    const input = { w: false, a: false, s: false, d: false, space: false, shift: false };
     const velocity = new THREE.Vector3();
     const menu = document.getElementById('menu');
     const shopMenu = document.getElementById('shop-menu');
+    const deathScreen = document.getElementById('death-screen');
 
     document.addEventListener('mousedown', (e) => {
-        if (STATE.isPlaying && !STATE.isShopOpen && e.button === 0) STATE.isFiring = true;
-        else if (!STATE.isPlaying && !STATE.isShopOpen) document.body.requestPointerLock();
+        if (STATE.isPlaying && !STATE.isShopOpen) {
+            if (e.button === 0) STATE.isFiring = true;
+            if (e.button === 2) useSpecialSkill(); 
+        } else if (!STATE.isPlaying && !STATE.isShopOpen && STATE.currentStage !== STAGE.GOD_INTERVENTION && deathScreen.style.display !== 'flex') {
+            document.body.requestPointerLock();
+        }
     });
 
     document.addEventListener('mouseup', () => STATE.isFiring = false);
+    document.addEventListener('contextmenu', event => event.preventDefault());
 
     document.addEventListener('pointerlockchange', () => {
         if (document.pointerLockElement === document.body) {
@@ -527,8 +688,9 @@
             STATE.isShopOpen = false;
             menu.style.display = 'none';
             shopMenu.style.display = 'none';
+            deathScreen.style.display = 'none';
         } else {
-            if (!STATE.isShopOpen) {
+            if (!STATE.isShopOpen && STATE.currentStage !== STAGE.GOD_INTERVENTION && deathScreen.style.display !== 'flex') {
                 STATE.isPlaying = false;
                 STATE.isFiring = false;
                 menu.style.display = 'flex';
@@ -548,7 +710,6 @@
             STATE.isFiring = false;
             document.exitPointerLock();
             shopMenu.style.display = 'flex';
-            updateShopUI();
         }
     }
 
@@ -560,7 +721,12 @@
             case 'KeyS': input.s = true; break;
             case 'KeyA': input.a = true; break;
             case 'KeyD': input.d = true; break;
-            case 'Space': if(STATE.canJump) { velocity.y = CONFIG.jumpForce; STATE.canJump = false; } break;
+            case 'Space': input.space = true; 
+                if(!STATE.canFly && STATE.canJump) { 
+                    velocity.y = input.shift ? CONFIG.highJump : CONFIG.jumpForce; 
+                    STATE.canJump = false; 
+                } break;
+            case 'ShiftLeft': input.shift = true; break;
             case 'Digit1': if(inventory[0]) switchSlot(0); break;
             case 'Digit2': if(inventory[1]) switchSlot(1); break;
             case 'Digit3': if(inventory[2]) switchSlot(2); break;
@@ -573,6 +739,8 @@
             case 'KeyS': input.s = false; break;
             case 'KeyA': input.a = false; break;
             case 'KeyD': input.d = false; break;
+            case 'Space': input.space = false; break;
+            case 'ShiftLeft': input.shift = false; break;
         }
     });
 
@@ -583,23 +751,86 @@
         camera.rotation.x = Math.max(-1.5, Math.min(1.5, camera.rotation.x));
     });
 
-    // --- 武器系統 ---
+    // --- VFX 特效系統 ---
+    function createMuzzleFlash() {
+        const flashColor = 0xffaa00;
+        const flashLight = new THREE.PointLight(flashColor, 2, 5);
+        const flashMesh = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffffaa }));
+        
+        const weaponGroup = weaponContainer.children.find(c => c.visible);
+        if (!weaponGroup) return;
+
+        // 簡單定位在武器前方
+        flashLight.position.set(0.1, 0, -1.2);
+        flashMesh.position.set(0.1, 0, -1.2);
+        
+        weaponGroup.add(flashLight);
+        weaponGroup.add(flashMesh);
+
+        setTimeout(() => {
+            weaponGroup.remove(flashLight);
+            weaponGroup.remove(flashMesh);
+        }, 50);
+    }
+
+    function createBulletTracer(startPos, endPos) {
+        const points = [startPos, endPos];
+        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+        const material = new THREE.LineBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.8 });
+        const line = new THREE.Line(geometry, material);
+        scene.add(line);
+        
+        // 漸隱效果
+        let opacity = 0.8;
+        const fade = setInterval(() => {
+            opacity -= 0.1;
+            line.material.opacity = opacity;
+            if (opacity <= 0) {
+                clearInterval(fade);
+                scene.remove(line);
+            }
+        }, 20);
+    }
+
+    // --- 武器技能與攻擊 ---
     function switchSlot(idx) {
         STATE.currentSlot = idx;
         STATE.isFiring = false;
-        if(!STATE.phase2) {
-            document.querySelectorAll('.slot').forEach((el, i) => el.classList.toggle('active', i === idx));
-        }
+        if(!STATE.phase2) document.querySelectorAll('.slot').forEach((el, i) => el.classList.toggle('active', i === idx));
         const currentWep = inventory[idx];
         for (const key in models) models[key].visible = false;
         if (models[currentWep.model]) {
             models[currentWep.model].visible = true;
             models[currentWep.model].position.z = 0; 
             models[currentWep.model].rotation.x = (currentWep.model === 'rpg') ? Math.PI/2 : 0;
-            if(currentWep.model === 'axe' || currentWep.model === 'moon') {
+            if(currentWep.model === 'axe' || currentWep.model === 'moon' || currentWep.model === 'final_moon') {
                 models[currentWep.model].rotation.x = 0;
                 models[currentWep.model].position.set(-0.2, -0.1, 0);
             }
+        }
+    }
+
+    function useSpecialSkill() {
+        const weapon = inventory[STATE.currentSlot];
+        if (weapon.model === 'axe') {
+            const model = models['axe'];
+            let rot = 0;
+            const spinInterval = setInterval(() => {
+                rot += Math.PI / 2;
+                model.rotation.y += Math.PI / 2;
+                if (rot >= Math.PI * 2) {
+                    clearInterval(spinInterval);
+                    model.rotation.y = 0;
+                }
+            }, 16);
+
+            enemies.forEach(enemy => {
+                if (!enemy.userData.isDead && enemy.position.distanceTo(playerBody.position) < 6.0) {
+                    damageEnemy(enemy, weapon.damage * 1.5, weapon); 
+                    const pushDir = enemy.position.clone().sub(playerBody.position).normalize();
+                    enemy.userData.velocity.add(pushDir.multiplyScalar(20)); 
+                }
+            });
         }
     }
 
@@ -611,201 +842,248 @@
         STATE.lastShotTime = now;
 
         const model = models[weapon.model];
-        
         if (model) {
-            if (weapon.model === 'moon') {
-                model.rotation.x = -Math.PI / 2;
-                model.rotation.y = -Math.PI / 2;
-                setTimeout(() => {
-                    model.rotation.x = 0;
-                    model.rotation.z = Math.PI/4;
-                    model.rotation.y = 0;
-                }, 200);
-            } else if (weapon.type === 'melee') {
-                model.rotation.x = -Math.PI / 2; 
-                model.rotation.y = -Math.PI / 2;
-                setTimeout(() => {
-                    model.rotation.x = 0;
-                    model.rotation.y = 0;
-                }, 150);
+            if (weapon.model.includes('moon') || weapon.type === 'melee') {
+                model.rotation.x = -Math.PI / 2; model.rotation.y = -Math.PI / 2;
+                setTimeout(() => { model.rotation.x = 0; model.rotation.y = 0; if(weapon.model.includes('moon')) model.rotation.z = Math.PI/4; }, 150);
             } else {
-                model.position.z += 0.15;
-                setTimeout(() => model.position.z -= 0.15, 80);
-                const flash = new THREE.PointLight(weapon.color, 1, 5);
-                flash.position.set(0.5, -0.2, -1);
-                camera.add(flash);
-                setTimeout(() => camera.remove(flash), 50);
-                document.body.classList.add('recoil');
-                setTimeout(() => document.body.classList.remove('recoil'), 80);
+                model.position.z += 0.15; setTimeout(() => model.position.z -= 0.15, 80);
+                document.body.classList.add('recoil'); setTimeout(() => document.body.classList.remove('recoil'), 80);
+                
+                // [FIX] 槍口火光
+                if (weapon.model === 'rifle' || weapon.model === 'm249') {
+                    createMuzzleFlash();
+                }
             }
         }
 
         if (weapon.model === 'moon') {
-            fireMoonBlade(weapon);
+            fireProjectile(weapon);
+        } else if (weapon.type === 'laser') {
+            fireLaser(weapon);
+        } else if (weapon.model === 'rpg') {
+             fireProjectile(weapon); // RPG 改為發射實體
         } else {
+            // Hitscan (AK, M249)
             const raycaster = new THREE.Raycaster();
             raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-
-            if (weapon.type === 'explosive') {
-                const intersects = raycaster.intersectObjects([...enemies, floor, ...obstacles], true);
-                if (intersects.length > 0) createExplosion(intersects[0].point, weapon.damage);
-            } else {
-                if (weapon.type === 'melee') raycaster.far = weapon.range;
-                else raycaster.far = 1000;
-
-                const intersects = raycaster.intersectObjects(enemies, true);
-                if (intersects.length > 0) {
-                    const hit = intersects[0];
-                    let target = hit.object;
-                    while(target.parent && !target.userData.hp) target = target.parent;
-                    if (target.userData.hp) {
-                        // --- 擊退邏輯 (Knockback) ---
-                        // 計算從玩家指向敵人的向量
-                        const pushDir = hit.point.clone().sub(playerBody.position).normalize();
-                        
-                        // 確保 Boss 也會被擊退，但幅度較小
-                        const knockbackForce = (weapon.knockback || 0.5);
-                        const resistance = target.userData.isBoss ? 0.2 : 1.0; // Boss 只有 20% 的擊退效果
-                        
-                        target.position.add(pushDir.multiplyScalar(knockbackForce * resistance));
-                        
-                        damageEnemy(target, weapon.damage);
-                    }
+            let activeEnemies = enemies.filter(e => !e.userData.isDead).map(e => e.collider);
+            let targets = [...activeEnemies, floor, ...obstacles];
+            
+            raycaster.far = weapon.range;
+            const intersects = raycaster.intersectObjects(targets, true);
+            
+            // [FIX] 子彈軌跡
+            const gunWorldPos = new THREE.Vector3();
+            model.getWorldPosition(gunWorldPos);
+            // 稍微修正起始位置到槍口
+            gunWorldPos.add(new THREE.Vector3(0, 0, 0).applyQuaternion(camera.quaternion));
+            
+            let hitPoint;
+            if (intersects.length > 0) {
+                hitPoint = intersects[0].point;
+                const hit = intersects[0];
+                let targetGroup = hit.object.parent;
+                if (targetGroup && targetGroup.userData.hp) {
+                    const pushDir = hit.point.clone().sub(playerBody.position).normalize();
+                    pushDir.y = 0; 
+                    const knockbackForce = (weapon.knockback || 0.5);
+                    const resistance = targetGroup.userData.isBoss ? 0.1 : 1.0;
+                    targetGroup.userData.velocity.add(pushDir.multiplyScalar(knockbackForce * resistance * 20));
+                    damageEnemy(targetGroup, weapon.damage, weapon);
                 }
+            } else {
+                // 沒打中，射向遠處
+                const dir = new THREE.Vector3();
+                camera.getWorldDirection(dir);
+                hitPoint = gunWorldPos.clone().add(dir.multiplyScalar(50));
+            }
+            createBulletTracer(gunWorldPos, hitPoint);
+        }
+    }
+
+    function fireLaser(weapon) {
+        const geometry = new THREE.CylinderGeometry(0.05, 0.05, 50, 8);
+        geometry.rotateX(-Math.PI / 2);
+        geometry.translate(0, 0, 25); 
+        const material = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.8 });
+        const beam = new THREE.Mesh(geometry, material);
+        
+        const gunPos = new THREE.Vector3();
+        models['pistol'].getWorldPosition(gunPos);
+        beam.position.copy(gunPos);
+        
+        const dir = new THREE.Vector3();
+        camera.getWorldDirection(dir);
+        beam.lookAt(gunPos.clone().add(dir));
+        
+        scene.add(beam);
+        
+        let opacity = 0.8;
+        const fade = setInterval(() => {
+            opacity -= 0.1;
+            beam.material.opacity = opacity;
+            if(opacity <= 0) { clearInterval(fade); scene.remove(beam); }
+        }, 30);
+
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+        raycaster.far = 50;
+        const activeEnemies = enemies.filter(e => !e.userData.isDead).map(e => e.collider);
+        const intersects = raycaster.intersectObjects(activeEnemies, true);
+        
+        if (intersects.length > 0) {
+            const hit = intersects[0];
+            let targetGroup = hit.object.parent;
+            if (targetGroup) {
+                const pushDir = dir.clone().normalize();
+                pushDir.y = 0.2;
+                targetGroup.userData.velocity.add(pushDir.multiplyScalar(weapon.knockback * 10));
+                damageEnemy(targetGroup, weapon.damage, weapon);
             }
         }
     }
 
-    function fireMoonBlade(weapon) {
-        const geometry = new THREE.CylinderGeometry(2, 2, 0.2, 16, 1, true);
-        geometry.openEnded = true;
-        const material = new THREE.MeshBasicMaterial({ 
-            color: 0x00ffff, 
-            side: THREE.DoubleSide,
-            transparent: true,
-            opacity: 0.8
-        });
+    function fireProjectile(weapon) {
+        let geometry, material;
+        const isRPG = weapon.model === 'rpg';
+        
+        if (isRPG) {
+            geometry = new THREE.CylinderGeometry(0.1, 0.1, 0.8, 8);
+            geometry.rotateX(Math.PI / 2);
+            material = new THREE.MeshStandardMaterial({ color: 0x555555 });
+        } else {
+            // Moon Blade
+            geometry = new THREE.CylinderGeometry(2, 2, 0.2, 16, 1, true);
+            geometry.openEnded = true;
+            material = new THREE.MeshBasicMaterial({ color: weapon.color, side: THREE.DoubleSide, transparent: true, opacity: 0.8 });
+        }
+
         const projectile = new THREE.Mesh(geometry, material);
         
         const direction = new THREE.Vector3();
         camera.getWorldDirection(direction);
         projectile.position.copy(playerBody.position).add(new THREE.Vector3(0, 1.5, 0)).add(direction.clone().multiplyScalar(2));
-        
         projectile.lookAt(projectile.position.clone().add(direction));
-        projectile.rotateX(Math.PI / 2);
+        
+        if (!isRPG) projectile.rotateX(Math.PI / 2);
+
+        // [FIX] 月牙速度加快 (40 -> 100)
+        const speed = isRPG ? 60 : 100;
 
         projectile.userData = { 
-            velocity: direction.multiplyScalar(40),
-            life: 3.0,
-            damage: weapon.damage
+            velocity: direction.multiplyScalar(speed), 
+            life: 3.0, 
+            damage: weapon.damage, 
+            isPlayer: true, 
+            weaponModel: weapon.model,
+            knockback: weapon.knockback,
+            isRPG: isRPG
         };
-
         scene.add(projectile);
         playerProjectiles.push(projectile);
     }
 
     function createExplosion(point, damage) {
         const light = new THREE.PointLight(0xffaa00, 5, 20);
-        light.position.copy(point);
-        light.position.y += 1;
-        scene.add(light);
-        setTimeout(() => scene.remove(light), 200);
+        light.position.copy(point); light.position.y += 1;
+        scene.add(light); setTimeout(() => scene.remove(light), 200);
+        
+        // 簡單爆炸粒子
+        const boomGeo = new THREE.SphereGeometry(2, 8, 8);
+        const boomMat = new THREE.MeshBasicMaterial({ color: 0xff4400, wireframe: true });
+        const boom = new THREE.Mesh(boomGeo, boomMat);
+        boom.position.copy(point);
+        scene.add(boom);
+        setTimeout(() => scene.remove(boom), 100);
 
         enemies.forEach(enemy => {
+            if (enemy.userData.isDead) return;
             if (enemy.position.distanceTo(point) < 10) {
-                damageEnemy(enemy, damage);
-                // 爆炸擊退
+                damageEnemy(enemy, damage, {model: 'rpg'});
                 const dir = enemy.position.clone().sub(point).normalize();
-                const force = enemy.userData.isBoss ? 1.0 : 4.0;
-                enemy.position.add(dir.multiplyScalar(force));
+                dir.y = 0.2; 
+                enemy.userData.velocity.add(dir.multiplyScalar(10));
             }
         });
     }
 
-    function damageEnemy(enemy, dmg) {
-        if (enemy.userData.isBoss) {
-            if (STATE.bossInvincible) {
-                enemy.traverse(c => {
-                    if(c.isMesh) {
-                        c.material.emissive.setHex(0xaa00aa);
-                        setTimeout(() => c.material.emissive.setHex(0x330000), 100);
-                    }
-                });
+    function damageEnemy(enemy, dmg, weaponSource) {
+        if (enemy.userData.isDead) return;
+        if (STATE.currentStage === STAGE.CHEST_TRAP) return;
+        if (STATE.currentStage === STAGE.SPACE_BOSS_INVINCIBLE || STATE.currentStage === STAGE.ATTACK_MOON) {
+            if (enemy.userData.isBoss) {
+                // 無敵階段不扣血，也不變色
                 return;
             }
+        }
 
-            enemy.userData.hp -= dmg;
+        enemy.userData.hp -= dmg;
+        if (enemy.userData.isBoss) {
             const pct = Math.max(0, (enemy.userData.hp / enemy.userData.maxHp) * 100);
             document.getElementById('boss-hp-bar').style.width = pct + '%';
-            
-            if (!STATE.phase2 && pct <= 50) {
-                enterPhaseTwo();
-            }
+        }
 
-            if (enemy.userData.hp <= 0) {
-                if (STATE.bossLives > 0) {
-                    STATE.bossLives--;
-                    document.getElementById('boss-lives').innerText = `LIVES: ${STATE.bossLives}`;
-                    enemy.userData.hp = enemy.userData.maxHp;
-                    document.getElementById('boss-hp-bar').style.width = '100%';
-                    
-                    const announce = document.getElementById('wave-announce');
-                    announce.innerText = "BOSS RESURRECTED!";
-                    announce.style.opacity = 1;
-                    announce.style.color = "#ff0000";
-                    setTimeout(() => announce.style.opacity = 0, 1500);
-
-                    enemy.scale.multiplyScalar(1.1); 
-                    enemy.userData.speed += 1.0; // 平衡：復活後速度增加量減少 (原本+2)
-
-                    if (STATE.bossLives === 0) {
-                        STATE.bossInvincible = true;
-                        enemy.userData.hp = 1;
-                        document.getElementById('boss-hp-bar').style.background = "#aa00aa";
-                        document.getElementById('mission-hint').style.display = 'block';
-                    }
-                } else {
+        if (enemy.userData.hp <= 0) {
+            if (enemy.userData.isBoss) {
+                if (!STATE.phase2) { enterPhaseTwo(); return; }
+                else if (STATE.currentStage === STAGE.SPACE_COMBAT_1) {
+                    enemy.userData.hp = 0; enemy.userData.isDead = true; 
+                    enemy.rotation.x = -Math.PI / 2; enemy.position.y = 0.2;
+                    spawnChestTrap();
+                } else if (STATE.currentStage === STAGE.FINAL_COMBAT) {
                     killEnemy(enemy);
                 }
-            }
-
-        } else {
-            enemy.userData.hp -= dmg;
-            if (enemy.userData.hp <= 0) {
+            } else {
                 killEnemy(enemy);
             }
         }
 
-        if (enemy.userData.hp > 0 && !STATE.bossInvincible) {
-            enemy.traverse((child) => {
-                if(child.isMesh && child.material && child.material.emissive) child.material.emissive.setHex(0xffffff);
+        if (enemy.userData.hp > 0) {
+            // [FIX] BOSS 受擊閃爍修復：不再依賴複雜的計時器，直接閃一下就關
+            if (enemy.userData.flashTimer) clearTimeout(enemy.userData.flashTimer);
+            
+            enemy.traverse((child) => { 
+                if(child.isMesh && child.material && child.material.emissive) {
+                    child.material.emissive.setHex(0xffffff); 
+                }
             });
-            setTimeout(() => {
-                enemy.traverse((child) => {
+            
+            enemy.userData.flashTimer = setTimeout(() => {
+                enemy.traverse((child) => { 
                     if(child.isMesh && child.material && child.material.emissive) {
-                        child.material.emissive.setHex(enemy.userData.isBoss ? 0x330000 : 0x000000);
+                        // 根據當前階段決定恢復的顏色
+                        let restoreColor = 0x000000;
+                        if (enemy.userData.isBoss) {
+                             restoreColor = (STATE.currentStage >= STAGE.SPACE_BOSS_INVINCIBLE && STATE.currentStage < STAGE.FINAL_COMBAT) ? 0x800080 : 0xff0000;
+                        }
+                        child.material.emissive.setHex(restoreColor); 
                     }
                 });
-            }, 50);
+            }, 100); // 100ms 後恢復
         }
     }
 
     function killEnemy(enemy) {
         if (!enemies.includes(enemy)) return;
-        scene.remove(enemy);
-        enemies.splice(enemies.indexOf(enemy), 1);
+        enemy.userData.isDead = true;
+        if (enemy.collider) enemy.remove(enemy.collider);
+        enemy.rotation.x = -Math.PI / 2;
+        enemy.position.y = 0.2;
         if(!enemy.userData.isBoss) STATE.enemiesRemaining--;
-        
         addMoney(enemy.userData.score);
 
         if (enemy.userData.isBoss) {
+            scene.remove(enemy);
+            enemies.splice(enemies.indexOf(enemy), 1);
             STATE.bossActive = false;
             document.getElementById('boss-bar-container').style.display = 'none';
             document.getElementById('mission-hint').style.display = 'none';
+            document.getElementById('flight-controls').style.display = 'none';
             document.getElementById('wave-announce').innerText = "LEGENDARY VICTORY";
             document.getElementById('wave-announce').style.opacity = 1;
             document.getElementById('wave-announce').style.color = "#ffd700";
-            setTimeout(() => alert("你斬殺了惡魔，拯救了宇宙！"), 1000);
+            setTimeout(() => alert("你斬殺了惡魔，拯救了森林與宇宙！"), 1000);
         } else {
             if (STATE.enemiesRemaining <= 0 && !STATE.bossActive && STATE.wave < 3) {
                 setTimeout(() => startWave(STATE.wave + 1), 2000);
@@ -816,16 +1094,6 @@
     function addMoney(amount) {
         STATE.money += amount;
         document.getElementById('money-val').innerText = '$' + STATE.money;
-        updateShopUI();
-    }
-
-    function updateShopUI() {
-        if(STATE.phase2) return;
-        const currentMain = inventory[0].name;
-        const btnM249 = document.querySelector('button[onclick*="m249"]');
-        const btnRPG = document.querySelector('button[onclick*="rpg"]');
-        btnM249.disabled = STATE.money < 1000 || currentMain === 'M249';
-        btnRPG.disabled = STATE.money < 2000 || currentMain === 'RPG';
     }
 
     window.buyWeapon = function(type, cost) {
@@ -836,7 +1104,6 @@
         STATE.money -= cost;
         document.getElementById('money-val').innerText = '$' + STATE.money;
         if (STATE.currentSlot === 0) switchSlot(0);
-        updateShopUI();
     };
 
     window.buyItem = function(item, cost) {
@@ -853,199 +1120,299 @@
         document.getElementById('armor-val').innerText = Math.floor(STATE.armor);
     }
 
-    function updateBoss(boss, delta) {
-        if (boss.position.y < 2.0) boss.position.y = 2.0;
-
-        const wingL = boss.getObjectByName("wingL");
-        const wingR = boss.getObjectByName("wingR");
-        if(wingL && wingR) {
-            const flap = Math.sin(Date.now() * 0.005) * 0.3;
-            wingL.rotation.y = -flap;
-            wingR.rotation.y = flap;
-        }
-
-        boss.userData.attackCooldown -= delta;
-        if (boss.userData.attackCooldown <= 0) {
-            const baseCD = 2.0;
-            const reduction = (3 - STATE.bossLives) * 0.4;
-            boss.userData.attackCooldown = Math.max(0.5, baseCD - reduction);
-            
-            const projectile = new THREE.Mesh(
-                new THREE.SphereGeometry(0.5, 8, 8),
-                new THREE.MeshBasicMaterial({ color: 0xff0000 })
-            );
-            projectile.position.copy(boss.position);
-            projectile.position.y += 3; 
-            
-            const dir = new THREE.Vector3().subVectors(playerBody.position, projectile.position).normalize();
-            const speed = 20 + (3 - STATE.bossLives) * 5;
-            projectile.userData = { velocity: dir.multiplyScalar(speed), life: 5.0 };
-            
-            scene.add(projectile);
-            bossProjectiles.push(projectile);
-        }
-    }
-
+    // --- 物理與邏輯 ---
     const clock = new THREE.Clock();
 
-    function updatePhysics(delta) {
+    function updatePlayerPhysics(delta) {
         const forward = Number(input.w) - Number(input.s);
         const side = Number(input.d) - Number(input.a);
 
-        if (input.w || input.s) velocity.z -= forward * CONFIG.walkSpeed * delta * 5.0;
-        if (input.a || input.d) velocity.x += side * CONFIG.walkSpeed * delta * 5.0;
+        const currentSpeed = (STATE.canFly ? CONFIG.flySpeed : (input.shift ? CONFIG.runSpeed : CONFIG.walkSpeed));
 
-        velocity.x -= velocity.x * CONFIG.friction * delta;
-        velocity.z -= velocity.z * CONFIG.friction * delta;
+        if (STATE.canFly) {
+            const camDir = new THREE.Vector3();
+            camera.getWorldDirection(camDir);
+            const camSide = new THREE.Vector3();
+            camera.getWorldDirection(camSide);
+            camSide.cross(new THREE.Vector3(0,1,0)).normalize();
 
-        playerBody.translateX(velocity.x * delta);
-        playerBody.translateZ(velocity.z * delta);
+            if (input.w) velocity.add(camDir.multiplyScalar(currentSpeed * delta));
+            if (input.s) velocity.add(camDir.multiplyScalar(-currentSpeed * delta));
+            if (input.d) velocity.add(camSide.multiplyScalar(currentSpeed * delta));
+            if (input.a) velocity.add(camSide.multiplyScalar(-currentSpeed * delta));
+            if (input.space) velocity.y += currentSpeed * delta;
+            if (input.shift) velocity.y -= currentSpeed * delta;
 
-        velocity.y -= CONFIG.gravity * delta;
-        playerBody.position.y += velocity.y * delta;
+            velocity.multiplyScalar(0.95);
+            playerBody.position.add(velocity.clone().multiplyScalar(delta));
+            if(playerBody.position.y < 0) playerBody.position.y = 0;
+            if(playerBody.position.y > 100) playerBody.position.y = 100;
 
-        if (playerBody.position.y < 0) {
-            playerBody.position.y = 0;
-            velocity.y = 0;
-            STATE.canJump = true;
-        }
+        } else {
+            if (input.w || input.s) velocity.z -= forward * currentSpeed * delta * 5.0;
+            if (input.a || input.d) velocity.x += side * currentSpeed * delta * 5.0;
 
-        if (STATE.shakeIntensity > 0) {
-            const rx = (Math.random() - 0.5) * STATE.shakeIntensity;
-            const ry = (Math.random() - 0.5) * STATE.shakeIntensity;
-            camera.position.set(rx, 1.7 + ry, 0);
-            STATE.shakeIntensity -= delta * 2; 
-            if (STATE.shakeIntensity < 0) {
-                STATE.shakeIntensity = 0;
-                camera.position.set(0, 1.7, 0);
+            velocity.x -= velocity.x * CONFIG.friction * delta;
+            velocity.z -= velocity.z * CONFIG.friction * delta;
+
+            const nextX = playerBody.position.x + velocity.x * delta;
+            const nextZ = playerBody.position.z + velocity.z * delta;
+            
+            if (!STATE.phase2) {
+                for(let obs of obstacles) {
+                    const dist = Math.sqrt(Math.pow(nextX - obs.position.x, 2) + Math.pow(nextZ - obs.position.z, 2));
+                    if (dist < 1.5) { 
+                        if (playerBody.position.y > obs.userData.height && velocity.y <= 0) {
+                            playerBody.position.y = obs.userData.height;
+                            velocity.y = 0;
+                            STATE.canJump = true;
+                        } else {
+                            const pushDir = new THREE.Vector3(nextX - obs.position.x, 0, nextZ - obs.position.z).normalize();
+                            const overlap = 1.5 - dist;
+                            playerBody.position.x += pushDir.x * overlap;
+                            playerBody.position.z += pushDir.z * overlap;
+                        }
+                    }
+                }
+            }
+
+            playerBody.translateX(velocity.x * delta);
+            playerBody.translateZ(velocity.z * delta);
+
+            velocity.y -= CONFIG.gravity * delta;
+            playerBody.position.y += velocity.y * delta;
+
+            if (playerBody.position.y < 0) {
+                playerBody.position.y = 0;
+                velocity.y = 0;
+                STATE.canJump = true;
             }
         }
     }
 
+    function updateEnemyPhysics(enemy, delta) {
+        if (enemy.userData.isDead) return;
+
+        const dirToPlayer = new THREE.Vector3().subVectors(playerBody.position, enemy.position);
+        dirToPlayer.y = 0; 
+        if (enemy.userData.isBoss && STATE.canFly) {
+            dirToPlayer.y = playerBody.position.y - enemy.position.y;
+        }
+        dirToPlayer.normalize();
+
+        enemy.userData.velocity.add(dirToPlayer.multiplyScalar(enemy.userData.speed * delta * 2));
+
+        const separationRadius = 2.0;
+        const separationForce = 10.0;
+        
+        enemies.forEach(other => {
+            if (other === enemy || other.userData.isDead) return;
+            const dist = enemy.position.distanceTo(other.position);
+            if (dist < separationRadius) {
+                const push = new THREE.Vector3().subVectors(enemy.position, other.position).normalize();
+                push.y = 0;
+                enemy.userData.velocity.add(push.multiplyScalar(separationForce * delta));
+            }
+        });
+
+        if (!STATE.phase2) {
+            obstacles.forEach(obs => {
+                const dist = new THREE.Vector2(enemy.position.x - obs.position.x, enemy.position.z - obs.position.z).length();
+                if (dist < 2.5) {
+                    const push = new THREE.Vector3().subVectors(enemy.position, obs.position).normalize();
+                    push.y = 0;
+                    enemy.userData.velocity.add(push.multiplyScalar(20 * delta));
+                }
+            });
+        }
+
+        enemy.userData.velocity.multiplyScalar(0.9);
+        enemy.position.add(enemy.userData.velocity.clone().multiplyScalar(delta));
+
+        if (!enemy.userData.isBoss || !STATE.canFly) {
+            enemy.position.y = 0;
+        }
+        
+        enemy.lookAt(playerBody.position);
+    }
+
     function updateGameLogic(delta) {
-        if (STATE.wave === 3 && !STATE.phase2 && enemies.length < 60) {
-            if (Math.random() < 0.05) spawnEnemy();
+        torches.forEach(t => {
+            t.light.intensity = t.baseIntensity + Math.sin(Date.now() * 0.002 * t.speed) * 0.05;
+        });
+
+        if (STATE.currentStage === STAGE.CHEST_TRAP && STATE.chestRef) {
+            if (playerBody.position.distanceTo(STATE.chestRef.position) < 3.0) {
+                triggerBossResurrection();
+            }
         }
 
         enemies.forEach(enemy => {
-            enemy.lookAt(playerBody.position.x, enemy.position.y, playerBody.position.z);
-            enemy.translateZ(enemy.userData.speed * delta);
-
-            if (enemy.userData.isBoss) updateBoss(enemy, delta);
-
+            if (enemy.userData.isDead) return;
+            updateEnemyPhysics(enemy, delta);
+            if (enemy.userData.isBoss) {
+                enemy.userData.attackCooldown -= delta;
+                if (enemy.userData.attackCooldown <= 0) {
+                    enemy.userData.attackCooldown = Math.max(0.5, 2.0);
+                    if (STATE.currentStage >= STAGE.SPACE_BOSS_INVINCIBLE) enemy.userData.attackCooldown = 0.5;
+                    const projectile = new THREE.Mesh(new THREE.SphereGeometry(0.5, 8, 8), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+                    projectile.position.copy(enemy.position).add(new THREE.Vector3(0, 3, 0));
+                    const dir = new THREE.Vector3().subVectors(playerBody.position, projectile.position).normalize();
+                    projectile.userData = { velocity: dir.multiplyScalar(25), life: 5.0, damage: 20 };
+                    scene.add(projectile);
+                    bossProjectiles.push(projectile);
+                }
+            }
             const dist = enemy.position.distanceTo(playerBody.position);
-            // 碰撞判定範圍微調
-            if (dist < (enemy.userData.isBoss ? 3.0 : 2.0)) {
-                // 受傷冷卻 (I-Frames) 0.5秒
+            if (dist < (enemy.userData.isBoss ? 4.0 : 1.5)) {
                 const now = Date.now();
                 if (now - STATE.lastDamageTime > 500) {
-                    takeDamage(enemy.userData.damage, enemy.position);
+                    takeDamage(enemy.userData.damage);
                     STATE.lastDamageTime = now;
                 }
             }
         });
-
-        for (let i = bossProjectiles.length - 1; i >= 0; i--) {
-            const p = bossProjectiles[i];
-            p.position.add(p.userData.velocity.clone().multiplyScalar(delta));
-            p.userData.life -= delta;
-
-            if (p.position.distanceTo(playerBody.position) < 1.5) {
-                takeDamage(20, p.position);
-                scene.remove(p);
-                bossProjectiles.splice(i, 1);
-                continue;
-            }
-            if (p.userData.life <= 0) {
-                scene.remove(p);
-                bossProjectiles.splice(i, 1);
-            }
-        }
 
         for (let i = playerProjectiles.length - 1; i >= 0; i--) {
             const p = playerProjectiles[i];
             p.position.add(p.userData.velocity.clone().multiplyScalar(delta));
             p.userData.life -= delta;
             
-            p.rotateY(5 * delta);
+            if (!p.userData.isRPG) p.rotateY(5 * delta);
 
-            if (STATE.bossRef) {
-                const distToBoss = p.position.distanceTo(STATE.bossRef.position);
-                if (distToBoss < 5.0) {
-                    damageEnemy(STATE.bossRef, p.userData.damage);
-                    scene.remove(p);
-                    playerProjectiles.splice(i, 1);
+            // [FIX] RPG 煙霧尾跡
+            if (p.userData.isRPG) {
+                 const smoke = new THREE.Mesh(new THREE.SphereGeometry(0.2, 4, 4), new THREE.MeshBasicMaterial({ color: 0x888888 }));
+                 smoke.position.copy(p.position);
+                 scene.add(smoke);
+                 setTimeout(() => scene.remove(smoke), 500);
+            }
+
+            if (p.userData.isRPG) {
+                // RPG 碰撞檢測
+                const raycaster = new THREE.Raycaster(p.position, p.userData.velocity.clone().normalize(), 0, 1.0);
+                const hits = raycaster.intersectObjects([...enemies.map(e=>e.collider), floor], true);
+                if (hits.length > 0) {
+                    createExplosion(hits[0].point, p.userData.damage);
+                    scene.remove(p); playerProjectiles.splice(i, 1);
                     continue;
                 }
             }
 
-            if (STATE.bossInvincible && voidMoon) {
-                const distToMoon = p.position.distanceTo(voidMoon.position);
-                if (distToMoon < 25.0) {
-                    STATE.bossInvincible = false;
-                    STATE.truePowerUnlocked = true;
-                    
-                    scene.remove(voidMoon);
-                    voidMoon = null;
-                    const explosion = new THREE.PointLight(0xffffff, 10, 500);
-                    explosion.position.set(0, 100, -200);
-                    scene.add(explosion);
-                    
-                    document.getElementById('mission-hint').innerText = "真·月牙之力已覺醒！\n斬殺惡魔！";
-                    document.getElementById('mission-hint').style.color = "#ff0000";
-                    document.getElementById('boss-hp-bar').style.background = "#ff0000";
-                    
-                    scene.remove(p);
-                    playerProjectiles.splice(i, 1);
+            if (STATE.currentStage === STAGE.ATTACK_MOON && voidMoon) {
+                if (p.position.distanceTo(voidMoon.position) < 25.0) {
+                    triggerFinalForm();
+                    scene.remove(p); playerProjectiles.splice(i, 1);
                     continue;
                 }
             }
 
-            if (p.userData.life <= 0) {
-                scene.remove(p);
-                playerProjectiles.splice(i, 1);
+            if (p.userData.weaponModel === 'moon' || p.userData.weaponModel === 'final_moon') {
+                 enemies.forEach(enemy => {
+                     if (!enemy.userData.isDead && p.position.distanceTo(enemy.position) < 4.0) {
+                         damageEnemy(enemy, p.userData.damage, {model: 'moon'});
+                         const knockbackDir = p.userData.velocity.clone().normalize();
+                         enemy.userData.velocity.add(knockbackDir.multiplyScalar(p.userData.knockback || 10));
+                         p.userData.life = 0; 
+                     }
+                 });
             }
+
+            if (p.userData.life <= 0) { scene.remove(p); playerProjectiles.splice(i, 1); }
+        }
+
+        for (let i = bossProjectiles.length - 1; i >= 0; i--) {
+            const p = bossProjectiles[i];
+            p.position.add(p.userData.velocity.clone().multiplyScalar(delta));
+            p.userData.life -= delta;
+            if (p.position.distanceTo(playerBody.position) < 1.5) {
+                takeDamage(p.userData.damage);
+                scene.remove(p); bossProjectiles.splice(i, 1);
+                continue;
+            }
+            if (p.userData.life <= 0) { scene.remove(p); bossProjectiles.splice(i, 1); }
         }
     }
 
-    function takeDamage(amount, sourcePos) {
+    function showGameOver() {
+        STATE.isPlaying = false;
+        document.exitPointerLock();
+        document.getElementById('death-screen').style.display = 'flex';
+    }
+
+    window.restartCurrentStage = function() {
+        document.getElementById('death-screen').style.display = 'none';
+        
+        STATE.hp = 100;
+        STATE.armor = 0;
+        updateHUD();
+        playerBody.position.set(0, 0, 0);
+        velocity.set(0,0,0);
+        
+        enemies.forEach(e => { scene.remove(e); if(e.collider) scene.remove(e.collider); });
+        enemies = [];
+        bossProjectiles.forEach(p => scene.remove(p));
+        bossProjectiles = [];
+        playerProjectiles.forEach(p => scene.remove(p));
+        playerProjectiles = [];
+        STATE.enemiesRemaining = 0;
+        STATE.bossActive = false;
+        STATE.bossRef = null;
+        document.getElementById('boss-bar-container').style.display = 'none';
+
+        // [FIX] 宇宙階段重開邏輯修復
+        const wasInSpace = (STATE.currentStage >= STAGE.SPACE_COMBAT_1);
+
+        if (wasInSpace) {
+            // 如果在宇宙階段，強制重置回宇宙第一階段，確保劇情和BOSS狀態正確
+            STATE.phase2 = false; // 先重置標記讓 enterPhaseTwo 能跑
+            STATE.currentStage = STAGE.FOREST; // 暫時設回森林，讓邏輯重跑
+            
+            // 清除月亮 (enterPhaseTwo 會重建)
+            if (voidMoon) { scene.remove(voidMoon); voidMoon = null; }
+            
+            spawnEnemy(true); // 重新生成 BOSS 實體
+            enterPhaseTwo(); // 重新進入宇宙階段
+            
+            // 確保 BOSS 血量是滿的
+            if(STATE.bossRef) {
+                STATE.bossRef.userData.hp = STATE.bossRef.userData.maxHp;
+                // 重置外觀顏色
+                STATE.bossRef.traverse((child) => {
+                    if(child.isMesh && child.material && child.material.emissive) {
+                        child.material.emissive.setHex(0xff0000);
+                        child.material.color.set(0x1a0505);
+                    }
+                });
+                STATE.bossRef.userData.baseEmissive = 0xff0000;
+            }
+        } else {
+            // 如果在森林階段，正常開始波次
+            startWave(STATE.wave);
+        }
+        
+        document.body.requestPointerLock();
+    };
+
+    function takeDamage(amount) {
         let actualDmg = amount;
         if (STATE.armor > 0) {
-            STATE.armor -= amount * 0.5;
-            actualDmg = amount * 0.5;
+            STATE.armor -= amount * 0.5; actualDmg = amount * 0.5;
             if (STATE.armor < 0) STATE.armor = 0;
         }
         STATE.hp -= actualDmg;
         updateHUD();
 
         const vignette = document.getElementById('damage-vignette');
-        vignette.style.opacity = 1;
-        setTimeout(() => vignette.style.opacity = 0, 300);
-
-        STATE.shakeIntensity = 0.5;
-
-        if (sourcePos) {
-            const playerDir = new THREE.Vector3();
-            camera.getWorldDirection(playerDir);
-            playerDir.y = 0; playerDir.normalize();
-
-            const enemyDir = new THREE.Vector3().subVectors(sourcePos, playerBody.position);
-            enemyDir.y = 0; enemyDir.normalize();
-
-            const angle = playerDir.angleTo(enemyDir);
-            if (angle > Math.PI / 2) {
-                const warning = document.getElementById('danger-warning');
-                warning.style.display = 'block';
-                setTimeout(() => warning.style.display = 'none', 1000);
-            }
-        }
+        vignette.style.opacity = 1; setTimeout(() => vignette.style.opacity = 0, 300);
 
         if (STATE.hp <= 0) {
             STATE.hp = 0;
-            STATE.isPlaying = false;
-            document.exitPointerLock();
-            alert("GAME OVER");
-            location.reload();
+            if (STATE.currentStage === STAGE.SPACE_BOSS_INVINCIBLE) {
+                triggerScriptedDeath();
+            } else {
+                showGameOver();
+            }
         }
     }
 
@@ -1053,7 +1420,7 @@
         requestAnimationFrame(animate);
         if (STATE.isPlaying) {
             const delta = Math.min(clock.getDelta(), 0.1);
-            updatePhysics(delta);
+            updatePlayerPhysics(delta);
             updateGameLogic(delta);
             processShooting();
         } else {
